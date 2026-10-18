@@ -1,0 +1,7 @@
+.fade-conversation-title{position:fixed;height:40px;box-sizing:border-box;padding:9px 24px 10px;font-size:15px;font-weight:550;line-height:20px;text-align:center;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto}
+.fade-conversation-title[hidden]{display:none}
+
+
+.fade-conversation-title{user-select:none}.fade-conversation-title:focus-visible{outline:1px solid var(--muted);outline-offset:-4px}
+.fade-title-editor{position:fixed;height:30px;box-sizing:border-box;padding:3px 10px;border:0;border-radius:0;background:transparent;box-shadow:none;appearance:none;color:var(--ink);font:550 15px/22px "Segoe UI",sans-serif;text-align:center;pointer-events:auto;outline:none}
+

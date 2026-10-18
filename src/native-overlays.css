@@ -1,0 +1,29 @@
+/* Component allowlist: sidebar-owned menus and the inspected project form only.
+   Do not style every role=menu or .codex-dialog: specialized controls reuse them. */
+html[data-fade-codex]{--fc-overlay-accent:#b994e8;--fc-overlay-soft:#b994e81c;--fc-overlay-paper:#29282c;--fc-overlay-field:#222125;--fc-overlay-edge:#ffffff16;--fc-overlay-shadow:0 16px 48px #0005,0 2px 8px #0003;--fc-overlay-primary:#8550b9}
+html[data-fade-codex][data-fade-polarity=light]{--fc-overlay-accent:#8050b5;--fc-overlay-soft:#8050b50d;--fc-overlay-paper:#fefefe;--fc-overlay-field:#f9f8fa;--fc-overlay-edge:#3423441a;--fc-overlay-shadow:0 16px 48px #29163d14,0 2px 8px #29163d08;--fc-overlay-primary:#8050b5}
+html[data-fade-codex] [data-radix-menu-content][data-overlay-owner="slate-sidebar"][role=menu]{background:var(--fc-overlay-paper)!important;color:var(--fc-fg)!important;border:1px solid var(--fc-overlay-edge)!important;border-radius:14px!important;padding:5px!important;box-shadow:var(--fc-overlay-shadow)!important;--color-ring:var(--fc-overlay-accent);--color-bg-primary-ghost-hover:var(--fc-overlay-soft)}
+html[data-fade-codex] [data-radix-menu-content][data-overlay-owner="slate-sidebar"] :is([role=menuitem],[role=menuitemcheckbox],[role=menuitemradio]){border-radius:8px!important;font-size:13px!important;line-height:20px!important;min-height:32px;padding:6px 9px!important}
+html[data-fade-codex] [data-radix-menu-content][data-overlay-owner="slate-sidebar"] :is([role=menuitem],[role=menuitemcheckbox],[role=menuitemradio])[data-highlighted]:not([data-disabled]){background:var(--fc-overlay-soft)!important;color:var(--fc-overlay-accent)!important;outline:none!important}
+html[data-fade-codex] [data-radix-menu-content][data-overlay-owner="slate-sidebar"] :is([role=menuitem],[role=menuitemcheckbox],[role=menuitemradio])[data-disabled]{opacity:.45}
+html[data-fade-codex] [data-radix-menu-content][data-overlay-owner="slate-sidebar"] :is([role=separator],.h-px.bg-border){background:var(--fc-overlay-edge)!important}
+/* Opt in only the inspected project form. Unknown dialogs retain native styling. */
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]){background:var(--fc-overlay-paper)!important;color:var(--fc-fg)!important;border:1px solid var(--fc-overlay-edge)!important;border-radius:20px!important;box-shadow:var(--fc-overlay-shadow)!important;--color-ring:var(--fc-overlay-accent);--color-border:var(--fc-overlay-edge)}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form .heading-dialog{font-size:20px!important;line-height:28px!important;font-weight:600!important;letter-spacing:0!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form .bg-primary-soft{background:var(--fc-overlay-field)!important;border-color:var(--fc-overlay-edge)!important;border-radius:12px!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form .border:has(>input):not([aria-invalid=true]):not(:has([aria-invalid=true])){border-color:var(--fc-overlay-edge)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form .border:has(>input):focus-within:not([aria-invalid=true]):not(:has([aria-invalid=true])){border-color:var(--fc-overlay-accent)!important;box-shadow:0 0 0 2px var(--fc-overlay-soft)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form .border>input{background:transparent!important;caret-color:var(--fc-overlay-accent)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button.rounded-button-action{border-radius:9px!important;min-height:34px;font-size:13px!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button.bg-primary-solid:not(.text-danger){background:var(--fc-overlay-primary)!important;border-color:transparent!important;color:#fff!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button.bg-primary-solid:not(:disabled):not([aria-disabled=true]):hover{filter:brightness(1.08)}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button.rounded-button-action:not(.bg-primary-solid):not(:disabled):not([aria-disabled=true]):hover{background:var(--fc-overlay-soft)!important;color:var(--fc-overlay-accent)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button.rounded-full{border-radius:8px!important;padding:5px 10px!important;background:var(--fc-overlay-soft)!important;color:var(--fc-overlay-accent)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) button:focus-visible{outline:2px solid var(--fc-overlay-accent)!important;outline-offset:2px}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"])>button{border-radius:7px!important;color:var(--fc-muted)!important}
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"])>button:hover{background:var(--fc-overlay-soft)!important;color:var(--fc-overlay-accent)!important}
+html[data-fade-codex] body:has(.codex-dialog[aria-modal=true] form input[aria-label="项目名称"]) .codex-dialog-overlay{background:rgb(22 16 30 / 24%)!important;backdrop-filter:blur(2px)}
+
+/* Inline dialog selectors stay transparent, including hover/open states. */
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button:not(.rounded-button-action):not(.rounded-full):not(.bg-primary-solid),
+html[data-fade-codex] .codex-dialog[aria-modal=true]:has(form input[aria-label="项目名称"]) form button:not(.rounded-button-action):not(.rounded-full):not(.bg-primary-solid):hover{background:transparent!important}

@@ -1,0 +1,33 @@
+/* Preview only. Not included in Fade's runtime build. */
+.workspace{transition:right .5s var(--ease)}
+body.file-preview-open .workspace{right:min(53vw,850px)}
+body.file-preview-open .conversation{width:calc(100% - 100px);max-width:740px}
+.floating-file{position:fixed;right:22px;top:76px;bottom:76px;width:min(51vw,820px);z-index:15;display:flex;flex-direction:column;border:1px solid var(--edge);border-radius:22px;background:var(--glass);box-shadow:0 22px 70px #00000024,0 2px 8px #00000008;backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);opacity:0;transform:translateX(30px) scale(.98);visibility:hidden;pointer-events:none;transition:opacity .3s,transform .5s var(--ease),visibility .5s}
+.floating-file.is-open{opacity:1;transform:none;visibility:visible;pointer-events:auto}
+.file-top{display:flex;align-items:center;gap:12px;padding:15px 17px;flex-wrap:wrap;position:relative;z-index:2}
+.file-identity{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.file-identity>svg{color:var(--purple);width:19px;height:19px}
+.file-identity h2{font-size:13px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-format{font-size:9px;letter-spacing:.5px;color:var(--muted);padding:2px 6px;border:1px solid var(--line);border-radius:5px}
+.file-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.file-actions .icon{width:30px;height:30px}
+.open-file-control{position:relative;margin-left:4px}
+.open-file-button{border:1px solid var(--edge);border-radius:9px;padding:5px 9px;font-size:11px;height:30px;gap:6px}
+.open-file-button:hover,.open-file-button[aria-expanded=true]{background:var(--accent-soft);border-color:var(--purple)}
+.open-file-button svg{width:12px;height:12px}
+.file-open-menu{position:absolute;right:0;top:38px;width:190px;padding:6px;border:1px solid var(--edge);border-radius:13px;background:var(--raised);box-shadow:var(--shadow);animation:appear .18s var(--ease)}
+.file-open-menu button{width:100%;justify-content:flex-start;padding:9px 10px;font-size:11px;border-radius:8px}
+.file-open-menu button:hover{background:var(--accent-soft);color:var(--purple)}
+.file-content{flex:1;min-height:0;display:flex;margin:0 8px 8px;border:1px solid var(--line);border-radius:15px;background:var(--paper);overflow:hidden}
+.file-source{flex:1;min-width:0;margin:0;padding:25px 24px 40px 48px;overflow:auto;counter-reset:code;font:12px/1.95 Consolas,monospace;color:var(--text);scrollbar-width:thin;scrollbar-color:var(--edge) transparent}
+.file-source .code-line{display:block;white-space:pre;position:relative;min-height:1.95em}
+.file-source .code-line::before{counter-increment:code;content:counter(code);position:absolute;right:calc(100% + 18px);color:var(--muted);opacity:.5;font-size:10px;user-select:none}
+.file-source .tag{color:var(--purple)}.file-source .value{color:var(--ink)}.file-source .comment{color:var(--muted)}
+.file-tree{width:170px;flex-shrink:0;padding:18px 9px;border-right:1px solid var(--line);background:var(--bg);font-size:11px}
+.file-tree p{color:var(--muted);padding:4px 9px 12px}.file-tree button{width:100%;justify-content:flex-start;padding:7px 9px;border-radius:7px;font-size:11px}.file-tree .selected{background:var(--accent-soft);color:var(--purple)}
+.file-tree svg{width:14px;height:14px}.file-tree .nested{padding-left:23px}
+.explorer-demo{position:absolute;right:16px;top:66px;width:min(420px,calc(100% - 32px));padding:16px;border:1px solid var(--edge);border-radius:16px;background:var(--raised);box-shadow:var(--shadow);z-index:3;animation:appear .2s var(--ease)}
+.explorer-demo header{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:12px}.explorer-demo code{display:block;color:var(--muted);font-size:10px;padding:8px;background:var(--bg);border-radius:7px;overflow-wrap:anywhere}.explorer-demo p{display:flex;gap:10px;padding:11px 9px;font-size:11px}.explorer-demo p.selected{background:var(--accent-soft);color:var(--purple);border-radius:8px}
+@media(max-width:1050px){.file-top{gap:8px}.file-identity{flex-basis:calc(100% - 40px)}.file-actions{width:100%}.file-actions>.file-dismiss{margin-left:auto}.floating-file{right:14px;width:52vw}.file-tree{width:130px}}
+@media(max-width:700px){body.file-preview-open .workspace{right:0}.floating-file{inset:68px 12px 70px;width:auto}.file-top{padding:12px}.file-identity{flex-basis:auto}.file-actions{width:auto}.file-source{font-size:11px;padding-left:40px}.file-tree{width:125px}}
+@media(prefers-reduced-motion:reduce){.workspace,.floating-file{transition:none}.file-open-menu,.explorer-demo{animation:none}}

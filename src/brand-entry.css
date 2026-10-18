@@ -1,0 +1,7 @@
+/* Compact brand entry; the original rail-toggle behavior is retained. */
+.compact-wordmark{display:grid;place-items:center;width:34px;height:34px;padding:5px;box-sizing:border-box;border-radius:9px;line-height:1;transform:none;flex:none}
+.compact-wordmark img{display:block;width:24px;height:24px;object-fit:contain;pointer-events:none}
+.compact-wordmark:hover,.compact-wordmark[aria-expanded=true]{background:var(--accent-soft)}
+.compact-wordmark:focus-visible{outline:2px solid var(--purple);outline-offset:-2px}
+/* Match the native rail center and place the divider at its right edge. */
+.compact-head{padding-left:calc((var(--fade-navigation-width,60px) - 34px)/2);gap:calc((var(--fade-navigation-width,60px) - 34px)/2)}

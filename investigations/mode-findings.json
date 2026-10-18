@@ -1,0 +1,16 @@
+{
+  "appVersion":"26.1013.4894.0",
+  "scope":"Independent window prototype on port 19228; investigation only; no messages sent",
+  "observations":[
+    "Initial route was / in ChatGPT product mode, not a conversation route.",
+    "ChatGPT home had no data-testid=home-icon; Codex home had that anchor.",
+    "After switching to Codex, an old ChatGPT selector remained mounted with a zero-size rectangle alongside the visible Codex selector.",
+    "Current src/gpt-tabs.js explicitly requests work product mode before creating a ChatGPT tab.",
+    "Native new-conversation action with selectChat:true alone retained Codex sidebar and Codex composer.",
+    "Adding codexAppMode:chat with sidebarProductMode:codex rendered ChatGPT composer but native state overwrote sidebarProductMode to work.",
+    "No model request, attachment upload, or existing ChatGPT conversation navigation was tested.",
+    "Test window ended on original ChatGPT home mode and was closed."
+  ],
+  "conclusion":"Unified outer UI needs a prototype separating product shell state from conversation composer state; a simple removal of mode switching is insufficient.",
+  "productionChangesThisInvestigation":false
+}

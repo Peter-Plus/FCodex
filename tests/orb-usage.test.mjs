@@ -1,0 +1,4 @@
+import fs from 'node:fs';import vm from 'node:vm';import test from 'node:test';import assert from 'node:assert/strict';
+const ctx=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../src/orb-usage.js',import.meta.url),'utf8'),ctx);
+test('quota reports remaining percent, selects five-hour window and falls back to weekly',()=>{const weekly={used_percent:80,limit_window_seconds:604800};assert.equal(ctx.fadeUsageDisplay({primary_window:weekly}).text,'20%');assert.equal(ctx.fadeUsageDisplay({primary_window:weekly,secondary_window:{used_percent:25,limit_window_seconds:18000}}).text,'75%')});
+test('missing quota is unavailable and valid zero remains zero',()=>{assert.equal(ctx.fadeUsageDisplay(null).text,'—');assert.equal(ctx.fadeUsageDisplay({primary_window:{used_percent:null}}).text,'—');assert.equal(ctx.fadeUsageDisplay({primary_window:{used_percent:100}}).text,'0%')});

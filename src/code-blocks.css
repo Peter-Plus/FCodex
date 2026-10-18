@@ -1,0 +1,8 @@
+/* Native message code cards only; editor and inline-code styles are independent. */
+html[data-fade-codex] [data-markdown-text-style] [data-code-block]{background:var(--fc-panel)!important;border:1px solid var(--fc-line)!important;border-radius:12px!important;box-shadow:none!important}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block]>[data-markdown-copy=exclude]{min-height:38px;padding:4px 10px 4px 16px!important;gap:8px;background:var(--fc-panel)!important;color:var(--fc-muted)!important;font-size:12px!important;font-weight:400}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block-source]{padding:8px 16px 14px!important;background:transparent!important;scrollbar-width:thin;scrollbar-color:var(--fc-control-border) transparent}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block-source]>code{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;line-height:1.65;color:inherit}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block-controls] button{width:28px;height:28px;border-radius:7px!important;color:var(--fc-muted)!important}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block-controls] button:is(:hover,[aria-pressed=true]){background:color-mix(in srgb,var(--fc-accent) 8%,transparent)!important;color:var(--fc-accent)!important}
+html[data-fade-codex] [data-markdown-text-style] [data-code-block-controls] button:focus-visible{outline:2px solid var(--fc-accent)!important;outline-offset:-2px}

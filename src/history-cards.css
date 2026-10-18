@@ -1,0 +1,46 @@
+/* The left fan mirrors geometry, never readable text. */
+/* Both lists share one opacity transition, independent of row replacement. */
+#navigation .nav-content{transition:opacity 180ms ease}
+#navigation.open .nav-content{opacity:0}
+#navigation.open.cards-ready .nav-content{opacity:1;transition:opacity 320ms cubic-bezier(.4,0,.2,1)}
+@media(prefers-reduced-motion:reduce){#navigation .nav-content{transition:none!important}}
+#arcList,#historyList{min-height:0;justify-content:flex-start;overflow-anchor:none}
+#navigation{left:0!important;--orb-left:calc(50vw - 73px)}
+:host .navigation.open .orb-button{--orb-x:50vw;--orb-y:50vh;--orb-scale:1}
+#arcViewport,.navigation.open #arcViewport,#historyViewport{
+ width:calc(50% - 124px);max-width:none;height:100vh;padding:0 24px;box-sizing:border-box;
+}
+#arcViewport,.navigation.open #arcViewport{left:calc(50% + 100px)}
+#historyViewport,.navigation.open #historyViewport{left:24px;transform:translateY(-50%) scaleX(-1)}
+#historyViewport .row-main,#historyViewport .project-main,#historyViewport .history-message{direction:ltr}
+#historyViewport .row-main,#historyViewport .project-main{transform:scaleX(-1)}
+#historyViewport .history-message{font-size:12px;justify-content:center}
+#historyViewport .history-message:not(:has(.row-main)){color:transparent}
+#historyViewport .history-message::after{content:attr(data-label);position:absolute;inset:0;display:grid;place-items:center;transform:scaleX(-1);color:var(--muted)}
+#historyGuides{position:absolute;left:0;top:0;width:100%;pointer-events:none;overflow:visible}
+#historyGuides path{fill:none;stroke:var(--purple);stroke-width:1.2;opacity:.65}
+.fade-codex-tab[aria-selected=true]{background:var(--accent-soft);color:var(--purple);border-radius:8px}
+@media(max-width:700px){
+ :host .navigation.open .orb-button{--orb-scale:.62}
+ #arcViewport,.navigation.open #arcViewport,#historyViewport{width:calc(50% - 58px);padding:0 10px}
+ #arcViewport,.navigation.open #arcViewport{left:calc(50% + 48px)}
+ #historyViewport,.navigation.open #historyViewport{left:10px}
+ .nav-row .row-title{font-size:11px}
+}
+.fade-scroll-origin{position:fixed;transform:translate(-50%,-50%);width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--edge);border-radius:50%;background:var(--paper);color:var(--muted);font:16px/1 sans-serif;pointer-events:none;z-index:10}.fade-scroll-origin[hidden]{display:none}:host([data-fan-scrolling]) .arc-viewport,:host([data-fan-scrolling]) .arc-viewport *{cursor:ns-resize!important}
+/* Navigation takes visual priority; keep only a faint trace of the workspace. */
+#navigation .veil{
+ background:rgb(48 48 48 / 76%);
+ backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+ transition:opacity 260ms cubic-bezier(.3,0,.2,1);
+}
+#navigation .card-surface path{fill:var(--paper)}
+#navigation .nav-row:hover>.card-surface path,
+#navigation .nav-row:focus-within>.card-surface path{fill:var(--raised)}
+@media(prefers-reduced-motion:reduce){#navigation .veil{transition:none!important}}
+
+:host([data-theme=light]) #navigation .veil{background:rgb(218 218 218 / 76%)}
+.compact-head,.header-menu-toggle,.header-theme-toggle,.header-fullscreen-toggle,.header-settings-toggle,.fullscreen-window-controls,.fade-conversation-title{
+ filter:blur(var(--fade-background-blur,0px));transition:filter 220ms ease;
+}
+@media(prefers-reduced-motion:reduce){.compact-head,.header-menu-toggle,.header-theme-toggle,.header-fullscreen-toggle,.header-settings-toggle,.fullscreen-window-controls,.fade-conversation-title{transition:none}}

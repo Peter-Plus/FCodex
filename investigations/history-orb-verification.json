@@ -1,0 +1,21 @@
+{
+  "first": {
+    "left": 159.89584350585938,
+    "right": 0
+  },
+  "second": {
+    "left": 159.89584350585938,
+    "right": 180.20834350585938
+  },
+  "scrollIndependent": true,
+  "newTab": true,
+  "deduplicated": true,
+  "correctRoute": true,
+  "global": "codex",
+  "history": {
+    "count": 40,
+    "busy": false,
+    "error": "",
+    "pages": 2
+  }
+}

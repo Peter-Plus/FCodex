@@ -1,0 +1,58 @@
+{
+  "opened": {
+    "pages": 1,
+    "queries": [
+      {
+        "kind": "chatgpt-conversation",
+        "hasData": true,
+        "observers": 1
+      },
+      {
+        "kind": "chatgpt-conversation-details",
+        "hasData": false,
+        "observers": 2
+      }
+    ],
+    "mapping": true,
+    "pending": 0,
+    "originalTabsPreserved": true
+  },
+  "closed": {
+    "pages": 0,
+    "queries": [],
+    "mapping": false,
+    "pending": 0,
+    "originalTabsPreserved": true
+  },
+  "inactiveClosePreservesRoute": true,
+  "reopened": {
+    "pages": 1,
+    "queries": [
+      {
+        "kind": "chatgpt-conversation",
+        "hasData": true,
+        "observers": 1
+      },
+      {
+        "kind": "chatgpt-conversation-details",
+        "hasData": false,
+        "observers": 2
+      }
+    ],
+    "mapping": true,
+    "pending": 0,
+    "originalTabsPreserved": true
+  },
+  "final": {
+    "pages": 0,
+    "queries": [],
+    "mapping": false,
+    "pending": 0,
+    "originalTabsPreserved": true
+  },
+  "draft": {
+    "before": 1,
+    "after": 0,
+    "pending": 0
+  }
+}

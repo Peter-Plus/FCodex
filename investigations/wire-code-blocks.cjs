@@ -1,0 +1,1 @@
+const fs=require('fs');const p='build-ui.mjs';let s=fs.readFileSync(p,'utf8');s=s.replace("read('src/native-overlays.css')+'\\n'+accentCss","read('src/native-overlays.css')+'\\n'+read('src/code-blocks.css')+'\\n'+accentCss");fs.writeFileSync(p,s);

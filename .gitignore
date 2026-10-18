@@ -1,0 +1,32 @@
+# Disposable task outputs (see AGENTS.md)
+/.work/
+
+# Local application copies, profiles and session state
+/.fade-runtime/
+/.fade-runtime-isolated/
+/.fade-runtime-diagnostic/
+/.fade-session.json
+/.fade-preferences.json
+/.hot-update-expression.js
+/.icon-build-temp/
+/launch.log
+/launch-diagnostic.log
+
+# Machine-specific shortcut and private UI evidence (keep locally)
+/Fade Codex.lnk
+/investigations/brand-entry.png
+/investigations/code-block-fixed.png
+
+# Legacy experiment locations; new experiments must use .work/
+/.native-prototype/
+/.window-prototype/
+/.mode-prototype/
+/.launch-test/
+/.preview-profile/
+/.startup-profile/
+/.startup-state-*.json
+/.startup-state-*.json.tmp
+/.startup-media-check-*/
+/.startup-electron-check-*/
+/startup/asar-index.json
+/startup/.compile-*/

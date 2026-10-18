@@ -1,0 +1,7 @@
+{
+  "date": "2026-10-18",
+  "tests": {"passed":83,"failed":0},
+  "live": {"codexDirectoryRows":27,"gptDirectoryRows":21,"idleCloseQueued":true,"reopenCancelledRelease":true,"releaseQueueDrainedAfterGrace":true},
+  "scope": "Local Codex retained page expiry only; native task stores and terminals are untouched.",
+  "limits": "Running/approval/unknown status and unsent draft guards covered by automated tests; live release checked on idle historical conversation. New unsent Codex composer retains native single-draft behavior."
+}

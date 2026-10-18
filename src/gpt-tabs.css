@@ -1,0 +1,44 @@
+.compact-title{flex:0 1 auto;max-width:220px}
+.fade-gpt-area{display:flex;align-items:center;gap:5px;min-width:0;flex:1;border-left:1px solid var(--edge);padding-left:10px;-webkit-app-region:no-drag}
+.fade-gpt-tabs{display:flex;gap:4px;min-width:0;overflow:visible}
+
+.fade-gpt-tab{display:flex;align-items:center;flex:none;max-width:210px;height:32px;box-sizing:border-box;border-radius:8px;gap:2px;color:var(--text)}
+.fade-gpt-tab[draggable=true]{position:relative;user-select:none}
+.fade-gpt-tab[draggable=true] .fade-gpt-select{cursor:grab}
+.fade-gpt-tabs[data-fade-dragging] .fade-gpt-select{cursor:grabbing}
+.fade-gpt-tab[data-fade-drop]::after{content:"";position:absolute;top:4px;bottom:4px;width:2px;border-radius:2px;background:var(--purple);pointer-events:none}
+.fade-gpt-tab[data-fade-drop=before]::after{left:-3px}
+.fade-gpt-tab[data-fade-drop=after]::after{right:-3px}
+.fade-gpt-tab:has([aria-selected=true]){background:var(--accent-soft);color:var(--purple)}
+.fade-gpt-select{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:32px;box-sizing:border-box;padding:6px 7px 6px 11px;font-size:13px;line-height:20px;color:inherit;text-align:left}
+.fade-gpt-close,.fade-gpt-add{flex:none;width:28px;height:28px;border-radius:7px;color:var(--muted);font-size:17px}
+.fade-gpt-add{font-size:21px;width:30px;height:32px}
+.fade-gpt-close:hover,.fade-gpt-add:hover{background:var(--line);color:var(--ink)}
+.fade-gpt-add:disabled{opacity:.4;cursor:progress}
+@media(max-width:700px){.compact-title{max-width:110px}.compact-head{gap:7px}.fade-gpt-area{padding-left:5px}.fade-gpt-tab{max-width:150px}}
+
+.fade-codex-tab{flex:none;white-space:nowrap;padding-right:10px}
+/* Two compact groups share available width; directory and add controls never scroll. */
+.fade-gpt-area{flex:none;overflow:visible}
+.fade-gpt-tabs{flex:none}
+.fade-directory,.fade-gpt-area .compact-title{flex:none;max-width:none;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--ink) 17%,transparent);height:32px;padding:6px 10px;font-size:12px;line-height:18px;white-space:nowrap;color:var(--muted);border-radius:6px}
+.fade-directory:hover,.fade-directory[aria-expanded=true]{background:var(--line);color:var(--ink)}
+.fade-directory:focus-visible,.fade-gpt-select:focus-visible,.fade-gpt-close:focus-visible,.fade-gpt-add:focus-visible{outline:1px solid var(--purple);outline-offset:-1px}
+.fade-codex-select{display:flex;align-items:center;gap:6px}
+.fade-tab-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fade-tab-status{display:inline-flex;align-items:center;justify-content:center;flex:0 0 13px;width:13px;height:13px;color:currentColor}
+.fade-tab-status svg{display:block;width:13px;height:13px}
+.fade-tab-status-working svg{animation:fade-tab-spin .9s linear infinite}
+.fade-tab-status-working{color:var(--muted)}
+.fade-tab-status-completed,.fade-tab-status-reply{color:var(--purple)}
+@keyframes fade-tab-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.fade-tab-status-working svg{animation:none}}
+
+.fade-tabs-scroll{display:flex;align-items:center;gap:13px;min-width:0;max-width:100%;flex:0 1 auto;height:43px;overflow-x:auto;overflow-y:hidden;border-left:1px solid color-mix(in srgb,var(--purple) 30%,transparent);scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ink) 35%,transparent) transparent;-webkit-app-region:no-drag;overscroll-behavior-x:contain}
+.fade-tabs-scroll .fade-gpt-area{border-left:1px solid color-mix(in srgb,var(--purple) 30%,transparent)}
+.fade-tabs-scroll .fade-gpt-area:first-child{border-left:0}
+.fade-tabs-scroll::-webkit-scrollbar{height:5px}
+.fade-tabs-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ink) 35%,transparent);border-radius:5px}
+.fade-tabs-scroll::-webkit-scrollbar-track{background:transparent}
+
+.fade-directory:hover,.fade-directory[aria-expanded=true],.fade-gpt-area .compact-title:hover,.fade-gpt-area .compact-title[aria-expanded=true]{border-color:color-mix(in srgb,var(--ink) 30%,transparent);background:var(--line);color:var(--ink)}

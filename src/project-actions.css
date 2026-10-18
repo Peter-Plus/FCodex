@@ -1,0 +1,12 @@
+.nav-row.project-actions{gap:0}
+.project-main{display:flex;align-items:center;gap:15px;flex:1;min-width:0;height:100%;padding:0;text-align:left;outline-offset:-5px!important}
+.project-main .row-title{min-width:0}
+.project-new-chat{flex:none;width:28px;height:28px;margin-left:12px;border-radius:7px;color:var(--muted)}
+.project-new-chat svg{width:16px;height:16px}
+.project-new-chat:hover,.project-new-chat:focus-visible{background:var(--accent-soft);color:var(--purple)}
+@media(max-width:850px){.project-main{gap:10px}.project-new-chat{margin-left:8px}}
+@media(max-width:560px){.project-main{gap:8px}.project-new-chat{margin-left:4px}}
+.project-menu{flex:none;width:28px;height:28px;margin-left:8px;border-radius:7px;color:var(--muted)}
+.project-menu svg{width:16px;height:16px;fill:currentColor;stroke:none}
+.project-menu:hover,.project-menu:focus-visible,.project-menu[aria-expanded=true]{background:var(--accent-soft);color:var(--purple)}
+.project-menu+.project-new-chat{margin-left:4px}

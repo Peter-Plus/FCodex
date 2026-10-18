@@ -1,0 +1,19 @@
+{
+  "x": 47,
+  "y": 72,
+  "size": 680,
+  "createAt": 1.8,
+  "duration": 2.3,
+  "fadeAt": 83,
+  "spin": 272,
+  "glow": 195,
+  "titleGlitch": 150,
+  "titleInterval": 3,
+  "titleDuration": 0.6,
+  "pageGlitch": 100,
+  "pageInterval": 0.4,
+  "finalGlitch": 85,
+  "loopFrom": 3.9,
+  "loopTo": 5.1,
+  "loop": 0.7
+}

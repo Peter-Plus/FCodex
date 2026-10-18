@@ -1,0 +1,20 @@
+.header-fullscreen-toggle{position:absolute;right:145px;top:6px;width:30px;height:30px;padding:6px;border-radius:8px;color:var(--ink);pointer-events:auto;-webkit-app-region:no-drag;z-index:2}
+.header-fullscreen-toggle:hover{background:var(--line)}
+.header-fullscreen-toggle svg{width:17px;height:17px}
+.fullscreen-window-controls{position:absolute;right:0;top:0;height:43px;display:flex;pointer-events:auto;-webkit-app-region:no-drag;z-index:3;color:var(--ink)}
+.fullscreen-window-controls[hidden]{display:none}
+.fullscreen-window-controls button{width:46px;height:43px;display:grid;place-items:center;padding:0;color:inherit;border-radius:0}
+.fullscreen-window-controls button:hover{background:var(--line)}
+.fullscreen-window-controls #fullscreenClose:hover{background:#c42b1c;color:white}
+.fullscreen-window-controls svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1}
+.header-fullscreen-toggle:focus-visible,.fullscreen-window-controls button:focus-visible{outline:2px solid var(--purple);outline-offset:-3px}
+@media(max-width:560px){.header-fullscreen-toggle{right:138px}}
+
+.header-fullscreen-toggle .fullscreen-exit{display:none}
+.header-fullscreen-toggle[aria-pressed=true] .fullscreen-enter{display:none}
+.header-fullscreen-toggle[aria-pressed=true] .fullscreen-exit{display:block}
+
+
+#fullscreenRestore .window-restore{display:none}
+#fullscreenRestore[data-maximized=true] .window-maximize{display:none}
+#fullscreenRestore[data-maximized=true] .window-restore{display:block}

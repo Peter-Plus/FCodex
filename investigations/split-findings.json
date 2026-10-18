@@ -1,0 +1,13 @@
+{
+  "scope": "isolated .mode-prototype only; no messages sent, no files uploaded",
+  "globalMode": "codex",
+  "globalWorkEnabled": false,
+  "chatComposer": "visible with temporary chat and native ChatGPT model picker",
+  "modelMenu": ["GPT-6","GPT-5.6 Sol"],
+  "attachment": "button opens after mousedown+click, but shows plugin search; full ChatGPT attachment behavior NOT verified",
+  "draftIsolation": "FAILED: same unsent text persisted across ChatGPT/Codex content toggles",
+  "switchBack": "Codex composer restored; ChatGPT model picker absent",
+  "cleanup": "test draft cleared",
+  "limits": ["no sending/backend test","no existing ChatGPT history navigation test","no full Fade integration","requires native bundle patches specific to installed version"],
+  "productionFilesChanged": false
+}

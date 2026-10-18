@@ -1,0 +1,12 @@
+html[data-fade-codex] nav:has([data-thread-user-message-navigation-rail-list]){
+ left:auto!important;right:var(--fade-rail-inset,6px)!important;
+}
+html[data-fade-codex] [data-thread-user-message-navigation-item-id]{justify-content:flex-end}
+/* Mirror only the marker artwork; leave hit targets and preview anchors intact. */
+html[data-fade-codex] [data-thread-user-message-navigation-item-id]>span{transform:scaleX(-1);transform-origin:center}
+html[data-fade-codex] [data-fade-message-preview]{
+ position:fixed!important;inset:auto!important;left:var(--fade-preview-left)!important;top:var(--fade-preview-top)!important;
+ transform:none!important;translate:none!important;width:var(--fade-preview-width)!important;max-width:var(--fade-preview-width)!important;
+ transform-origin:right center!important;
+}
+html[data-fade-codex] [data-fade-message-preview-plane]{position:fixed!important;inset:0!important;transform:none!important;translate:none!important;pointer-events:none!important}

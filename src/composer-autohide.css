@@ -1,0 +1,13 @@
+/* Overlay the native footer without reserving its height in the transcript. */
+html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container{--thread-scroll-padding-bottom:16px!important;scroll-padding-bottom:0!important}
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]{overflow:clip;background:transparent!important}
+/* The native jump-to-bottom button sits above the footer's bounding box. */
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer][data-fade-composer-visible=true],
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]:focus-within{overflow:visible}
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]>:not([class*="_background_"]){translate:0 calc(100% + 24px);transition:translate 220ms cubic-bezier(.2,.7,.2,1)}
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer][data-fade-composer-visible=true]>:not([class*="_background_"]),
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]:focus-within>:not([class*="_background_"]){translate:0 0}
+html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]>[class*="_background_"]{display:none!important}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]>:not([class*="_background_"]){transition:none}}
+html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container [class*="_background_"][class*="_fade_"]{display:none!important}
+

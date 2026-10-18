@@ -1,0 +1,69 @@
+{
+  "checkedAt": "2026-10-17T16:03:55.508Z",
+  "status": "experimental-not-ready",
+  "passed": [
+    "global Codex shell with genuine ChatGPT composer",
+    "separate normal Codex and two ChatGPT drafts",
+    "native model picker",
+    "native attachment menu entries",
+    "Codex thread navigation and native back/forward",
+    "temporary-chat flag preserved per tab"
+  ],
+  "navigation": {
+    "opened": {
+      "path": "/local/01a14a4f-10cd-7f72-bde3-c02402b96081",
+      "chat": false,
+      "global": "codex"
+    },
+    "back": {
+      "path": "/",
+      "chat": true,
+      "global": "codex"
+    },
+    "forward": {
+      "path": "/local/01a14a4f-10cd-7f72-bde3-c02402b96081",
+      "chat": false,
+      "global": "codex"
+    }
+  },
+  "baseline": {
+    "before": "FADE_TEMP_BASELINE",
+    "after": "\n",
+    "off": "FADE_TEMP_BASELINE",
+    "note": "native default home draft, same isolated shell patch"
+  },
+  "temporaryDraftMatrix": [
+    {
+      "step": "normalA",
+      "text": "FADE_FINAL_DRAFT_1"
+    },
+    {
+      "step": "tempA-before",
+      "text": "\n"
+    },
+    {
+      "step": "normalB",
+      "text": "FADE_FINAL_DRAFT_2"
+    },
+    {
+      "step": "tempA-restored",
+      "text": "\n",
+      "label": "关闭临时聊天"
+    },
+    {
+      "step": "normalA-restored",
+      "text": "FADE_FINAL_DRAFT_1"
+    }
+  ],
+  "blocker": "Temporary-chat text is lost after switching away and back; ordinary draft remains intact. No persistence workaround added.",
+  "untested": [
+    "actual send and reply",
+    "real ChatGPT history navigation",
+    "file uploads",
+    "restart tab restoration",
+    "full Fade and startup integration"
+  ],
+  "noMessagesSent": true,
+  "noFilesUploaded": true,
+  "productionChanged": false
+}

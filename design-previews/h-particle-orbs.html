@@ -1,0 +1,78 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>粒子球 / 01–05</title><style>
+*{box-sizing:border-box}body{margin:0;background:#e6e6e6;color:#666;font:12px "Segoe UI","Microsoft YaHei UI",sans-serif}header{height:62px;display:flex;align-items:center;padding:0 28px;gap:9px}.spacer{flex:1}header>span{font-size:11px;letter-spacing:.16em}button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}button:focus-visible{outline:2px solid #9569be;outline-offset:-4px}.control{display:grid;place-items:center;width:30px;height:30px;border:1px solid #00000020;border-radius:50%;background:transparent;color:#666}.control svg{width:13px;height:13px;fill:currentColor}.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:15px;padding:0 24px 25px;max-width:1900px;margin:auto}.number{text-align:center;height:33px;font-size:11px;letter-spacing:.16em}.pair{border-radius:12px;overflow:hidden;border:1px solid #00000013}.orb{display:block;width:100%;aspect-ratio:1/1.08;border:0;padding:0;position:relative;overflow:hidden;touch-action:manipulation}.dark{background:#191919}.light{background:#f4f4f4}.orb canvas{width:100%;height:100%;display:block;pointer-events:none}
+@media(min-width:1500px){header{height:75px;padding:0 40px}.grid{gap:20px;padding:0 35px 35px}}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){header{height:52px;padding:0 17px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 12px 18px;gap:12px}}
+@media(max-width:350px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style></head><body><header><span>01 — 05</span><div class="spacer"></div><button class="control" id="all" aria-label="同时触发五版动画"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 10 7-10 7z"/></svg></button><button class="control" id="pause" aria-label="暂停动画" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h3v12H5zm7 0h3v12h-3z"/></svg></button></header><main class="grid" id="grid"></main><script>
+const reduced=matchMedia('(prefers-reduced-motion:reduce)');
+// Same visual vocabulary in every candidate. Only particle populations and orbital mechanics differ.
+const configs=[
+ {count:140,core:25,min:43,max:96,size:[.65,1.35],speed:[.17,.62],kind:'cloud',gain:1.65,boost:8},
+ {count:290,core:28,min:44,max:100,size:[.45,1.1],speed:[.11,.85],kind:'dense',gain:1.48,boost:10},
+ {count:190,core:25,min:43,max:100,size:[.6,1.45],speed:[.12,.78],kind:'bands',gain:1.6,boost:9},
+ {count:240,core:24,min:43,max:100,size:[.45,1.7],speed:[.09,1.1],kind:'gradient',gain:1.72,boost:11},
+ {count:360,core:29,min:46,max:101,size:[.4,.95],speed:[.08,.68],kind:'halo',gain:1.5,boost:8.5}
+];
+function makeSpikes(count,variant){
+ const hash=n=>{const v=Math.sin(n*127.1+variant*311.7+19)*43758.5453;return v-Math.floor(v)};
+ const gaps=Array.from({length:count},(_,i)=>.35+Math.pow(hash(i+1),2)*2.7),total=gaps.reduce((a,b)=>a+b,0);
+ let angle=hash(99)*Math.PI*2;
+ return gaps.map((gap,i)=>{angle+=gap/total*Math.PI*2;return {angle,length:2+Math.pow(hash(i+41),1.5)*9,width:.75+hash(i+79)*1.9,lean:(hash(i+121)-.5)*.7}});
+}
+configs.forEach((config,i)=>{config.gain=config.max*.60/config.core;config.boost*=2.7;config.spikes=makeSpikes([10,14,12,11,16][i],i)});
+function particleAppearance(radial,config){
+ const inward=1-Math.min(1,Math.max(0,radial));
+ return {size:config.size[0]*.55+(config.size[1]*1.65-config.size[0]*.55)*Math.pow(inward,1.3),opacity:.12+.88*Math.pow(inward,.9)};
+}
+let seed=7107;function random(){seed=(seed*16807)%2147483647;return(seed-1)/2147483646}
+const states=configs.map(config=>({config,trigger:-100,baseScale:1,currentScale:1,currentBoost:0,coreAngle:0,particles:Array.from({length:config.count},(_,i)=>{
+ let u=random(),radial=u;
+ if(config.kind==='dense')radial=Math.pow(u,1.7);
+ if(config.kind==='bands')radial=(i%4)/3*.86+random()*.12;
+ if(config.kind==='gradient')radial=Math.pow(u,.7);
+ if(config.kind==='halo')radial=Math.pow(u,2.4);
+ const r=config.min+(config.max-config.min)*radial;
+ let speed=config.speed[0]+random()*(config.speed[1]-config.speed[0]);
+ if(config.kind==='gradient')speed*=1.65-radial;
+ if(config.kind==='bands')speed=(.20+(3-i%4)*.13)*(1+random()*.28);
+ return {angle:random()*Math.PI*2,r,radial,speed,...particleAppearance(radial,config)};
+})}));
+const surfaces=[];
+states.forEach((state,i)=>{const section=document.createElement('section');section.innerHTML=`<div class="number">0${i+1}</div><div class="pair"><button class="orb dark" aria-label="第 ${i+1} 版暗色，点击触发旋转"><canvas aria-hidden="true"></canvas></button><button class="orb light" aria-label="第 ${i+1} 版亮色，点击触发旋转"><canvas aria-hidden="true"></canvas></button></div>`;document.querySelector('#grid').append(section);section.querySelectorAll('.orb').forEach((button,j)=>{const canvas=button.querySelector('canvas');const surface={button,canvas,ctx:canvas.getContext('2d'),state,light:j===1,w:0,h:0};surfaces.push(surface);button.onclick=()=>trigger(state)})});
+let clock=0,last=0,raf=0,paused=reduced.matches;
+const ease=x=>x*x*(3-2*x),clamp=x=>Math.min(1,Math.max(0,x));
+function envelope(age,config,startScale=1){
+ if(age<0||age>=.78)return {scale:1,boost:0};
+ const accelerate=ease(clamp(age/.09)),decelerate=1-ease(clamp((age-.28)/.50));
+ const boost=config.boost*accelerate*decelerate;
+ const peak=Math.max(config.gain,startScale);
+ const scale=age<=.42?startScale+(peak-startScale)*ease(age/.42):peak+(1-peak)*ease((age-.42)/.36);
+ return {scale,boost};
+}
+function trigger(state){if(reduced.matches)return;if(paused){paused=false;syncPause();start()};state.baseScale=state.currentScale;state.trigger=clock}
+function resize(surface){const r=surface.canvas.getBoundingClientRect();if(!r.width)return;surface.w=r.width;surface.h=r.height;const dpr=Math.min(devicePixelRatio||1,2);surface.canvas.width=Math.round(r.width*dpr);surface.canvas.height=Math.round(r.height*dpr);surface.ctx?.setTransform(dpr,0,0,dpr,0,0)}
+function drawSpikes(ctx,state,cx,cy,k,color){
+ const radius=state.config.core*k*state.currentScale;
+ ctx.save();ctx.translate(cx,cy);ctx.rotate(state.coreAngle);ctx.fillStyle=`rgb(${color})`;
+ for(const spike of state.config.spikes){
+  const length=spike.length*k*(.7+.3*state.currentScale),width=spike.width*k,root=radius-1.5*k;
+  ctx.save();ctx.rotate(spike.angle);ctx.beginPath();ctx.moveTo(root,-width);ctx.lineTo(radius+length,spike.lean*width);ctx.lineTo(root,width);ctx.closePath();ctx.fill();ctx.restore();
+ }
+ ctx.restore();
+}
+function particleRadius(p,state){return p.r;}
+function draw(surface){const {ctx,w,h,state,light}=surface;if(!ctx||!w)return;ctx.clearRect(0,0,w,h);const k=Math.min(w,h)/260,cx=w/2,cy=h/2,color=light?'0,0,0':'255,255,255';
+ // Flat core with irregular attached spikes; no lighting or decorative halo.
+ ctx.globalAlpha=1;ctx.fillStyle=`rgb(${color})`;ctx.beginPath();ctx.arc(cx,cy,state.config.core*k*state.currentScale,0,Math.PI*2);ctx.fill();
+ drawSpikes(ctx,state,cx,cy,k,color);
+ for(const p of state.particles){const r=particleRadius(p,state)*k,x=cx+Math.cos(p.angle)*r,y=cy+Math.sin(p.angle)*r;ctx.fillStyle=`rgba(${color},${p.opacity})`;ctx.beginPath();ctx.arc(x,y,p.size*k,0,Math.PI*2);ctx.fill()}
+}
+function render(dt){states.forEach(state=>{const motion=reduced.matches?{scale:1,boost:0}:envelope(clock-state.trigger,state.config,state.baseScale);state.currentScale=motion.scale;state.currentBoost=motion.boost;state.coreAngle=(state.coreAngle+dt*(reduced.matches?0:.12+motion.boost*.55))%(Math.PI*2);state.particles.forEach(p=>{p.angle=(p.angle+dt*p.speed*(1+motion.boost))%(Math.PI*2)})});surfaces.forEach(draw)}
+function frame(now){raf=0;if(paused||document.hidden)return;const dt=last?Math.min(.04,(now-last)/1000):0;last=now;clock+=dt;render(dt);raf=requestAnimationFrame(frame)}
+function start(){if(!paused&&!raf&&!document.hidden){last=0;raf=requestAnimationFrame(frame)}}
+function syncPause(){const b=document.querySelector('#pause');b.setAttribute('aria-pressed',String(paused));b.setAttribute('aria-label',paused?'播放动画':'暂停动画');b.innerHTML=paused?'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 10 7-10 7z"/></svg>':'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h3v12H5zm7 0h3v12h-3z"/></svg>'}
+document.querySelector('#pause').onclick=()=>{paused=!paused;syncPause();if(paused){cancelAnimationFrame(raf);raf=0}else start()};document.querySelector('#all').onclick=()=>states.forEach(trigger);
+surfaces.forEach(s=>new ResizeObserver(()=>{resize(s);draw(s)}).observe(s.button));
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0}else start()});reduced.addEventListener('change',()=>{paused=reduced.matches;states.forEach(s=>{s.trigger=-100;s.baseScale=1});cancelAnimationFrame(raf);raf=0;render(0);syncPause();start()});surfaces.forEach(resize);render(0);syncPause();start();
+</script></body></html>

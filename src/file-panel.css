@@ -1,0 +1,114 @@
+/* Style the actual right workspace before its content mounts. Never match toolbar buttons. */
+html[data-fade-codex]{--fc-file-glass:#292929dc;--fc-file-edge:#ffffff23;--fc-file-line:#ffffff12}
+html[data-fade-codex][data-fade-polarity=light]{--fc-file-glass:#ffffffe6;--fc-file-edge:#0000001b;--fc-file-line:#0000000c}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"]{
+ margin:40px 22px 22px 12px!important;height:calc(100% - 62px)!important;
+ border:1px solid var(--fc-file-edge)!important;border-radius:22px!important;
+ background:var(--fc-file-glass)!important;box-shadow:0 12px 36px #00000016,0 2px 6px #00000008!important;
+ backdrop-filter:blur(28px);overflow:hidden!important;isolation:isolate;box-sizing:border-box;
+ display:flex!important;flex-direction:column!important;padding-top:0!important;
+}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"]>[class]:not(.fade-panel-chrome){flex:1;min-height:0;height:auto!important}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-app-shell-pane-frame]{border:0!important;background:transparent!important;box-shadow:none!important}
+/* Keep native tab-strip sizing, split panes, editor scroll and browser surfaces intact. */
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"]>[data-fade-panel-absolute]{top:0!important;bottom:0!important;height:auto!important}
+html[data-fade-codex] .fade-panel-chrome{position:absolute!important;inset:8px 10px auto auto!important;z-index:40;display:flex!important;align-items:center;flex:none;height:28px!important;padding:0;box-sizing:border-box;background:transparent;pointer-events:auto!important;-webkit-app-region:no-drag}
+html[data-fade-codex] .fade-panel-fallback-title{display:none}
+html[data-fade-codex] [data-fade-close-host]{position:relative!important;padding-inline-end:48px!important}
+html[data-fade-codex] aside[data-fade-panel-header=fallback]{padding-top:44px!important}
+html[data-fade-codex] aside[data-fade-panel-header=fallback]>[data-fade-panel-absolute]{top:44px!important}
+html[data-fade-codex] aside[data-fade-panel-header=fallback]>.fade-panel-chrome{inset:0 0 auto!important;height:44px!important;padding:8px 12px;justify-content:space-between;border-bottom:1px solid var(--fc-file-line)}
+html[data-fade-codex] aside[data-fade-panel-header=fallback]>.fade-panel-chrome .fade-panel-fallback-title{display:block;font-size:12px;color:var(--fc-muted)}
+html[data-fade-codex] .fade-panel-chrome button,
+html[data-fade-codex] .fade-file-heading button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:5px;flex:none;border:0;border-radius:8px;background:transparent;color:var(--fc-fg);cursor:pointer}
+html[data-fade-codex] .fade-panel-chrome button svg,
+html[data-fade-codex] .fade-file-heading button svg{width:18px;height:18px}
+html[data-fade-codex] .fade-panel-chrome button:hover,
+html[data-fade-codex] .fade-file-heading button:hover{background:color-mix(in srgb,var(--fc-send) 13%,transparent)}
+html[data-fade-codex] .fade-panel-chrome button:focus-visible,
+html[data-fade-codex] .fade-file-heading button:focus-visible{outline:2px solid var(--fc-send);outline-offset:2px}
+html[data-fade-codex] .fade-panel-chrome button:disabled,
+html[data-fade-codex] .fade-file-heading button:disabled{opacity:.3;cursor:not-allowed}
+/* The shared native viewer has two semantic slots, not arbitrary wrapped rows.
+   Adapt only that verified structure; keep browser inputs, menus and editors native. */
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header]{display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:center!important;gap:6px 10px!important;min-height:44px!important;height:auto!important;padding:8px 12px!important;background:var(--fc-file-glass)!important;box-shadow:none!important;border-bottom:1px solid var(--fc-file-line)}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header][data-fade-close-host]{padding-inline-end:48px!important}
+html[data-fade-codex] [data-fade-header-leading]{min-width:0!important;max-width:100%;align-items:center!important;gap:6px!important}
+html[data-fade-codex] [data-fade-header-trailing]{display:flex;align-items:center!important;gap:6px!important;min-width:0;max-width:100%;margin-inline-start:auto}
+html[data-fade-codex] [data-fade-header-flow]{display:contents!important}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-header-three]{grid-template-columns:minmax(0,1fr) max-content max-content!important}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important;padding-inline-end:12px!important}
+html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-leading]{grid-column:1;grid-row:1}
+html[data-fade-codex] [data-fade-header-layout=stacked][data-fade-close-host]:not([data-fade-header-three]) [data-fade-header-leading]{padding-inline-end:36px}
+html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:2;grid-row:1}
+html[data-fade-codex] [data-fade-header-layout=stacked][data-fade-close-host] [data-fade-header-middle]{margin-inline-end:36px}
+html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-trailing]{grid-column:1/-1!important;grid-row:2;justify-self:start;margin-inline-start:0!important;flex-wrap:wrap;width:100%!important}
+html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-trailing]>div:not(.fade-file-heading){flex-wrap:wrap;min-width:0}
+/* Browser navigation is its own three-slot layout: nav / address / actions.
+   Only the address moves to a full second row at narrow pane widths. */
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser]{grid-template-columns:max-content minmax(0,1fr) max-content!important}
+html[data-fade-codex] [data-fade-viewer-header=browser] [data-fade-header-middle]{min-width:0!important;width:100%;padding-inline:0!important}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important}
+html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-leading]{padding-inline-end:0!important}
+html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:1/-1;grid-row:2;margin-inline-end:0!important}
+html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-trailing]{grid-column:2!important;grid-row:1;margin-inline-end:36px;justify-self:end;width:auto!important}
+/* Strip nested glass capsules, including their inset shadows. Buttons retain
+   distinct hover/open/pressed/focus states rather than permanent circular rims. */
+html[data-fade-codex] [data-fade-viewer-header] :is([class*="_capsule_"],[class*="_controlSurface_"]){background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;border:0!important}
+html[data-fade-codex] [data-fade-viewer-header] [class*="_capsule_"]{padding:0!important;gap:4px;min-height:28px;height:auto!important;border-radius:0!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser] [class*="_inputSurface_"]{height:28px!important;border-radius:7px!important;background:color-mix(in srgb,var(--fc-fg) 5%,transparent)!important;box-shadow:inset 0 0 0 1px var(--fc-file-line)!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser] [class*="_inputSurface_"]:focus-within{box-shadow:inset 0 0 0 1px var(--fc-send)!important}
+html[data-fade-codex] [data-fade-viewer-header=browser] input{background:transparent!important;box-shadow:none!important;border:0!important}
+/* Electron's web surface is a separate native view and cannot be clipped by
+   an ancestor's CSS radius. Keep its measured bounds inside the card corners. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded]{padding:0 6px 14px!important;box-sizing:border-box!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header] [class*="_compound_"]{background:transparent!important;box-shadow:none!important;border-radius:7px!important;height:28px!important;align-self:center!important}
+html[data-fade-codex] [data-fade-viewer-header] button{border-radius:7px!important;box-shadow:none!important;border-color:transparent!important;min-height:28px;height:28px!important}
+html[data-fade-codex] [data-fade-viewer-header] button[class*="aspect-square"]{width:28px!important;min-width:28px!important}
+html[data-fade-codex] [data-fade-viewer-header] button:not(:disabled):not([aria-disabled=true]):is(:hover,[aria-expanded=true],[aria-pressed=true]){background:color-mix(in srgb,var(--fc-send) 11%,transparent)!important}
+html[data-fade-codex] [data-fade-viewer-header] button:focus-visible{outline:2px solid var(--fc-send)!important;outline-offset:1px}
+/* Override the older global toolbar theme, whose enabled-button selector has
+   higher specificity than the shared native control classes. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-testid="viewer-header"][data-fade-viewer-header] button:not(:disabled):not([aria-disabled=true]){background:transparent!important;box-shadow:none!important;border-color:transparent!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-testid="viewer-header"][data-fade-viewer-header] button:not(:disabled):not([aria-disabled=true]):is(:hover,[aria-expanded=true],[aria-pressed=true]){background:color-mix(in srgb,var(--fc-send) 11%,transparent)!important;box-shadow:none!important}
+html[data-fade-codex] .fade-file-heading{display:flex;align-items:center;gap:3px;flex:none;margin-inline-start:3px;pointer-events:auto;-webkit-app-region:no-drag}
+html[data-fade-codex] [class~="group/diff-header"]>.fade-file-heading{gap:1px;margin-inline-start:0}
+html[data-fade-codex] [class~="group/diff-header"]>.fade-file-heading button{width:24px;height:24px;padding:4px}
+html[data-fade-codex] [class~="group/diff-header"]>.fade-file-heading svg{width:16px;height:16px}
+@media(max-width:700px){html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"]{position:fixed!important;inset:68px 12px 22px calc(12px + var(--fade-workspace-inset,0px))!important;width:auto!important;height:auto!important;margin:0!important;z-index:30}}
+
+/* Keep the anchor inside the clipped card so native anchor visibility stays valid.
+   Restyle the native left-edge resizer, including its top-layer popover.
+   Keep pointer/keyboard handlers on the original separator; split dividers
+   without the left-edge wrapper are deliberately excluded. */
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"]{
+ width:20px!important;translate:none!important;transform:none!important;z-index:110!important;
+}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] [role="separator"][aria-orientation="vertical"]{
+ pointer-events:auto!important;cursor:col-resize!important;top:calc(50% - 36px)!important;bottom:auto!important;height:72px!important;
+}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] .sidebar-resize-handle-line{
+ flex:none!important;width:4px!important;height:44px!important;margin:auto!important;
+ border-radius:999px!important;opacity:0!important;
+ background:color-mix(in srgb,var(--fc-fg) 28%,transparent)!important;
+ transition:opacity .16s ease,width .16s ease,height .16s ease,background-color .16s ease,box-shadow .16s ease;
+}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] [role="separator"]:is(:hover,:active,:focus-visible) .sidebar-resize-handle-line{
+ opacity:1!important;width:4px!important;height:44px!important;background:#a078ce!important;
+ box-shadow:0 0 10px #a078ce30;
+}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] .sidebar-resize-handle-line{transition:none!important}}
+
+/* Native resizers use the browser top layer, above ordinary z-index overlays.
+   Suspend their entire hit surface while the orb navigation covers the workspace. */
+html[data-fade-codex][data-fade-nav-open] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"],
+html[data-fade-codex][data-fade-nav-open] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] :is(*,[role="separator"][aria-orientation="vertical"]){
+ visibility:hidden!important;pointer-events:none!important;
+}
+/* Move only the top-layer surface into the outer gutter, not its clipped anchor. */
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] > [popover]{
+ transform:translateX(-100%)!important;
+}
+html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] [role="separator"]::after{
+ translate:none!important;transform:none!important;
+}

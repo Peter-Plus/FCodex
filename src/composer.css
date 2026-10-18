@@ -1,0 +1,67 @@
+/* One reference layout, in CSS pixels: 19px sides, 18px top, 10px bottom.
+   Text occupies its own row; the toolbar follows after a 16px gap. */
+html[data-fade-codex][data-fade-polarity] [data-fade-composer][data-composer-surface-variant]{
+ --composer-border-radius:20px;--composer-surface-border-radius:20px;
+ --composer-layout-surface-background:var(--fc-panel)!important;
+ --composer-layout-surface-shadow:inset 0 0 0 1px var(--fc-line),0 8px 24px #00000004!important;
+ border-radius:20px!important;
+}
+html[data-fade-codex] [data-fade-composer]:not([data-fade-composer-body]){padding:0!important}
+html[data-fade-codex] [data-fade-composer-body]{padding:18px 19px 10px!important;box-sizing:border-box;gap:0!important}
+html[data-fade-codex] [data-fade-composer-input]{
+ --composer-editor-padding:0px!important;--composer-editor-min-height:24px!important;
+ --composer-editor-single-line-height:24px!important;--composer-editor-line-height:24px!important;
+ padding:0!important;margin:0 0 16px!important;min-height:24px!important;
+ width:100%!important;box-sizing:border-box;
+}
+html[data-fade-codex] [data-fade-composer] :is(textarea,[contenteditable=true]){
+ background:transparent!important;padding:0!important;margin:0!important;
+ min-height:24px!important;line-height:24px!important;box-sizing:border-box;
+}
+html[data-fade-codex] [data-fade-composer] [data-composer-input-layout]{padding:0!important;min-height:24px!important}
+html[data-fade-codex] [data-fade-footer]{
+ display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ flex-wrap:wrap!important;column-gap:10px!important;row-gap:16px!important;
+ width:100%!important;padding:0!important;margin:0!important;box-sizing:border-box;
+}
+html[data-fade-codex] [data-fade-footer] [class*="_AdaptiveFooterInput_"]{
+ flex:0 0 100%!important;order:-1;width:100%!important;min-height:0!important;margin:0!important;padding:0!important;
+}
+html[data-fade-codex] [data-fade-footer] [data-fade-composer-input]{margin:0!important}
+html[data-fade-codex] [data-fade-flatten]{display:contents!important}
+html[data-fade-codex] [data-fade-control=add]{
+ order:0;flex:none;width:32px!important;height:32px!important;min-width:32px!important;
+ padding:0!important;border:1px solid var(--fc-line)!important;border-radius:50%!important;
+ background:transparent!important;color:var(--fc-muted)!important;box-shadow:none!important;
+}
+html[data-fade-codex] [data-fade-control=add] svg{width:16px;height:16px}
+html[data-fade-codex] [data-fade-control=model]{order:1}
+html[data-fade-codex] [data-fade-control=usage]{order:2;color:var(--fc-muted)}
+html[data-fade-codex] :is([data-fade-control=send],[data-fade-control=stop]){
+ order:20;flex:none;margin-left:auto!important;width:32px!important;height:32px!important;min-width:32px!important;
+ padding:0!important;border:0!important;border-radius:11px!important;position:relative;
+ background:var(--fc-send)!important;color:var(--fc-send-ink)!important;
+ --button-text-color:var(--fc-send-ink);--button-background-color:var(--fc-send);box-shadow:none!important;
+ visibility:visible!important;
+}
+html[data-fade-codex] :is([data-fade-control=send],[data-fade-control=stop])>*{visibility:hidden}
+html[data-fade-codex] [data-fade-control=send]::after{
+ content:"";position:absolute;inset:8px;background:var(--fc-send-ink);
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21V3M4 11l8-8 8 8' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+html[data-fade-codex] [data-fade-control=stop]::after{content:"";position:absolute;inset:10px;border-radius:2px;background:var(--fc-send-ink)}
+html[data-fade-codex] [data-fade-control=send]:disabled{opacity:.4!important}
+html[data-fade-codex] :is([data-fade-control=voice],[data-fade-idle-send][hidden]){display:none!important}
+html[data-fade-codex] :is([data-fade-followup-hidden=true],[data-fade-followup-send][hidden]){display:none!important}
+@media(max-width:480px){
+ html[data-fade-codex] [data-fade-composer-body]{padding:16px 16px 10px!important}
+ html[data-fade-codex] [data-fade-footer]{column-gap:8px!important}
+}
+
+/* Empty native attachment tray otherwise adds an invisible row above the text. */
+html[data-fade-codex] [data-fade-composer] [class*="_ComposerLayoutAttachments_"]:not([data-visible-attachments]){padding-block:0!important;margin-block:0!important;min-height:0!important}
+/* The absolute composer backdrop otherwise paints over the native scrollbar.
+   Reserve the right gutter without moving the composer or scroll container. */
+html[data-fade-codex] .thread-scroll-container > div > [class*="_background_"][class*="_surface_"]{
+ right:16px!important;
+}

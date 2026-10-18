@@ -1,0 +1,126 @@
+html[data-fade-codex]{--fc-bg:#0d0e10;--fc-fg:#e7e7e5;--fc-muted:#a5a6aa;--fc-soft:#85878c;--fc-panel:#18191c;--fc-hover:#242529;--fc-line:#303237;color-scheme:dark}
+html[data-fade-codex][data-fade-polarity=light]{--fc-bg:#f5f5f2;--fc-fg:#222326;--fc-muted:#5e6065;--fc-soft:#6c6e73;--fc-panel:#ffffff;--fc-hover:#e8e8e4;--fc-line:#d5d6d2;color-scheme:light}
+html[data-fade-codex] :is(#root,#app){background-color:var(--fc-bg)!important;color:var(--fc-fg)!important;border-color:var(--fc-line)!important}
+html[data-fade-codex] :is(body,main,aside,[role=dialog],[role=menu],[role=listbox]){background-color:var(--fc-bg)!important;color:var(--fc-fg)!important;border-color:var(--fc-line)!important}
+html[data-fade-codex] :is(input,textarea,select){background:var(--fc-panel)!important;color:var(--fc-fg)!important;caret-color:var(--fc-fg)!important}
+html[data-fade-codex] [contenteditable=true]{background:transparent!important;color:var(--fc-fg)!important;caret-color:var(--fc-fg)!important}
+html[data-fade-codex] :is(.text-default,.text-default\!,.text-emphasis,.sidebar-item){color:var(--fc-fg)!important}
+html[data-fade-codex] :is(.text-secondary,.text-token-text-secondary){color:var(--fc-muted)!important}
+html[data-fade-codex] :is(.text-tertiary,.text-token-text-tertiary){color:var(--fc-soft)!important}
+html[data-fade-codex] .sidebar-item{border-radius:8px}
+html[data-fade-codex] .sidebar-item:hover{background-color:var(--fc-hover)!important}
+html[data-fade-codex] .sidebar-item[aria-current=page]{background-color:var(--fc-hover)!important;box-shadow:inset 2px 0 var(--fc-fg)}
+html[data-fade-codex] [data-composer-body]{border-color:var(--fc-line)!important}
+html[data-fade-codex] :is(input,textarea)::placeholder{color:var(--fc-soft)!important}
+html[data-fade-codex] :is(button,a,input,textarea):focus-visible{outline:1px solid var(--fc-fg)!important;outline-offset:3px}
+html[data-fade-codex] pre{background:var(--fc-panel)!important;border:1px solid var(--fc-line);border-radius:2px!important;box-shadow:inset 3px 0 var(--fc-line)}
+html[data-fade-codex] :is(pre,code,.xterm){font-family:Consolas,monospace!important}
+html[data-fade-codex] ::selection{background:var(--fc-fg);color:var(--fc-bg)}
+html[data-fade-codex] [data-fade-shake]{animation:fc-shake 180ms steps(3,end)}
+@keyframes fc-shake{20%{translate:1px -1px}45%{translate:-2px 0}70%{translate:1px 1px}}
+html[data-fade-codex] :is(pre,.xterm):focus-within{outline:1px solid var(--fc-line);outline-offset:3px}
+html[data-fade-codex] :is(pre,.xterm)[data-fade-shake]{animation:fc-terminal 180ms steps(3,end)}
+@keyframes fc-terminal{25%{translate:-1px 0;box-shadow:inset 4px 0 var(--fc-fg)}65%{translate:1px 0;text-shadow:1px 0 #888}100%{translate:0 0}}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] [data-fade-shake]{animation:none}}
+
+/* v1.2: three workspace planes. Keep component geometry and typography intact. */
+html[data-fade-codex]{--fc-shell:#101010;--fc-sidebar:#151515;--fc-chat:#202020;--fc-document:#282828;--fc-divider:#383838}
+html[data-fade-codex][data-fade-polarity=light]{--fc-shell:#e7e7e4;--fc-sidebar:#e9e9e6;--fc-chat:#fafaf8;--fc-document:#f0f0ed;--fc-divider:#d2d2ce}
+html[data-fade-codex] body{background-color:var(--fc-shell)!important}
+html[data-fade-codex] :is(.app-shell-left-panel,[data-slate-sidebar-content],.sidebar-navigation :where(nav)){background-color:var(--fc-sidebar)!important;--color-surface:var(--fc-sidebar);--color-token-side-bar-background:var(--fc-sidebar)}
+html[data-fade-codex] [data-app-shell-main-surface]{background-color:var(--fc-chat)!important;border-color:var(--fc-divider)!important;--color-surface:var(--fc-chat);--app-shell-main-surface-background:var(--fc-chat)}
+html[data-fade-codex] :is([data-app-shell-focus-area=main],[data-app-shell-main-content-layout]){background-color:var(--fc-chat)!important;--color-surface:var(--fc-chat);--app-shell-panel-background:var(--fc-chat)}
+html[data-fade-codex] [data-app-shell-focus-area=right-panel]{background-color:var(--fc-document)!important;--color-surface:var(--fc-document);--app-shell-panel-background:var(--fc-document)}
+html[data-fade-codex] [data-app-shell-tab-panel-controller=right]{background-color:var(--fc-document)!important}
+html[data-fade-codex] [data-app-shell-pane-frame]{border-color:var(--fc-divider)!important}
+/* Native scroll-region keyboard focus was producing full-height accent rails. */
+html[data-fade-codex] .thread-scroll-container:focus-visible{--tw-ring-color:var(--fc-divider);box-shadow:inset 0 0 0 1px var(--fc-divider)!important;outline:none!important}
+
+/* v1.3: application chrome, navigation, workspace and controls have distinct roles. */
+html[data-fade-codex]{
+ --fc-bg:#141414;--fc-shell:#141414;--fc-rail:#101010;
+ --fc-fg:#e3e3e3;--fc-muted:#a6a6a6;--fc-soft:#858585;
+ --fc-sidebar:#1c1c1c;--fc-chat:#242424;--fc-document:#2b2b2b;
+ --fc-header:#191919;--fc-sidebar-header:var(--fc-sidebar);--fc-tools:#232323;
+ --fc-panel:#303030;--fc-hover:#363636;--fc-selected:#3a3a3a;
+ --fc-divider:#393939;--fc-line:#353535;
+ --fc-control:#303030;--fc-control-border:#4b4b4b;--fc-control-hover:#3d3d3d;
+ --fc-icon:#b9b9b9;--fc-active:#ededed;--fc-on-active:#171717;
+ --fc-navigation-selected:#2b2b2b;--fc-tab:#303030;--fc-tab-border:#454545;
+ --fc-link:#c6a2ff;--fc-link-hover:#ddc5ff;
+ --fc-inline-bg:#4a4a4a;--fc-inline-fg:#fff;--fc-inline-border:#777777;
+}
+html[data-fade-codex][data-fade-polarity=light]{
+ --fc-bg:#e1e2e5;--fc-shell:#e1e2e5;--fc-rail:#d1d3d8;
+ --fc-sidebar:#e7e8eb;--fc-chat:#fcfcfa;--fc-document:#f1f2f4;
+ --fc-header:#e3e5e9;--fc-sidebar-header:var(--fc-sidebar);--fc-tools:#e5e7eb;
+ --fc-panel:#fff;--fc-hover:#d9dde3;--fc-selected:#c9ced7;
+ --fc-divider:#bcc1ca;--fc-line:#ccd0d7;
+ --fc-control:#fafbfc;--fc-control-border:#a5acb8;--fc-control-hover:#e0e5ec;
+ --fc-icon:#4e5663;--fc-active:#252b35;--fc-on-active:#fff;
+ --fc-navigation-selected:#d3d7df;--fc-tab:#fafbfc;--fc-tab-border:#b9bec7;
+ --fc-link:#7043b5;--fc-link-hover:#51258e;
+ --fc-inline-bg:#e1e4e9;--fc-inline-fg:#30343b;--fc-inline-border:#b6bdc8;
+}
+html[data-fade-codex] [data-app-navigation-rail]{background:var(--fc-rail)!important;box-shadow:inset -1px 0 var(--fc-divider)}
+/* The rail color must also sit behind the native rounded sidebar cutout. */
+html[data-fade-codex] .app-shell-left-panel{background-color:var(--fc-rail)!important;box-shadow:inset -1px 0 var(--fc-divider)}
+/* Internal T-junction: the titlebar and rail meet the sidebar at straight edges. */
+html[data-fade-codex] .app-shell-left-panel:has([data-app-navigation-rail]) [data-slate-sidebar-content]{border-start-start-radius:0!important}
+html[data-fade-codex] .sidebar-navigation [class*="_header_"]:has([class*="container/navigation-header"]){background:var(--fc-sidebar-header);box-shadow:none}
+html[data-fade-codex] [data-app-shell-titlebar]{background:var(--fc-header)!important;box-shadow:inset 0 -1px var(--fc-divider)}
+html[data-fade-codex] [data-app-shell-titlebar] :is([data-app-shell-focus-area],[data-app-shell-tab-row]){background:transparent!important}
+html[data-fade-codex] [data-app-shell-tab-row]{box-shadow:inset 1px 0 var(--fc-divider)}
+html[data-fade-codex] [data-testid="viewer-header"]{background:var(--fc-tools)!important;box-shadow:inset 0 -1px var(--fc-divider)}
+
+/* Use the native button variables too: icons and pseudo-element fills inherit them. */
+html[data-fade-codex] :is([data-app-navigation-rail],.sidebar-navigation,[data-app-shell-titlebar]) button:not(:disabled):not([aria-disabled=true]):not([data-disabled]){
+ --button-text-color:var(--fc-icon);--button-text-color-hover:var(--fc-fg);
+ --button-background-color:var(--fc-hover);--button-background-color-active:var(--fc-selected);
+}
+html[data-fade-codex] [data-app-navigation-rail] button{color:var(--fc-icon)!important}
+html[data-fade-codex] [data-app-navigation-rail] button[data-selected]{--button-background-color:var(--fc-active)!important;--button-text-color:var(--fc-on-active)!important;--button-text-color-hover:var(--fc-on-active)!important;background-color:var(--fc-active)!important;color:var(--fc-on-active)!important;border-radius:10px}
+html[data-fade-codex] [data-app-navigation-rail] button[data-selected]>span{color:var(--fc-on-active)!important}
+html[data-fade-codex] [data-app-navigation-rail] button[data-selected]::before{background-color:var(--fc-active)!important;opacity:1!important}
+html[data-fade-codex] .sidebar-item[aria-current=page]{background-color:var(--fc-navigation-selected)!important;box-shadow:none;color:var(--fc-fg)!important}
+html[data-fade-codex] .sidebar-item[aria-current=page]:hover{background-color:color-mix(in srgb,var(--fc-navigation-selected) 92%,var(--fc-fg))!important}
+html[data-fade-codex] .sidebar-item:not([aria-current=page]):hover{background-color:color-mix(in srgb,var(--fc-sidebar) 55%,var(--fc-navigation-selected))!important;box-shadow:none}
+html[data-fade-codex] .sidebar-item:focus-visible{outline:1px solid var(--fc-icon)!important;outline-offset:-3px}
+
+/* Only actual toolbar buttons get a standing surface; document contents stay untouched. */
+html[data-fade-codex] [data-testid="viewer-header"] button:not([class*="_compoundControl_"]):not(:disabled):not([aria-disabled=true]):not([data-disabled]){
+ background:var(--fc-control)!important;color:var(--fc-fg)!important;
+ box-shadow:inset 0 0 0 1px var(--fc-control-border)!important;
+ --button-text-color:var(--fc-fg);--button-text-color-hover:var(--fc-fg);
+ --button-background-color:var(--fc-control-hover);--button-background-color-active:var(--fc-selected);
+}
+html[data-fade-codex] [data-testid="viewer-header"] button:not([class*="_compoundControl_"]):not(:disabled):not([aria-disabled=true]):not([data-disabled]):hover{background:var(--fc-control-hover)!important;box-shadow:inset 0 0 0 1px var(--fc-icon)!important}
+html[data-fade-codex] [data-app-shell-titlebar] button:not([role=tab]):not(:disabled):not([aria-disabled=true]):not([data-disabled]){color:var(--fc-icon)!important}
+html[data-fade-codex] [data-app-shell-titlebar] button:not([role=tab]):not(:disabled):not([aria-disabled=true]):not([data-disabled]):hover{background-color:var(--fc-hover)!important;color:var(--fc-fg)!important}
+html[data-fade-codex] [data-app-shell-tab-controller] [role=tab]{color:var(--fc-icon)!important}
+/* Paint the existing selected surface, not another rectangle behind it. */
+html[data-fade-codex] [data-app-shell-tab-controller] [class*="_SelectedSurface_"]{background:var(--fc-tab)!important;border-color:transparent!important;box-shadow:inset 0 0 0 1px var(--fc-tab-border)!important}
+html[data-fade-codex] [data-app-shell-tab-controller] [role=tab][aria-selected=true]{color:var(--fc-fg)!important}
+html[data-fade-codex] [data-app-shell-tab-controller] [data-tab-id]:has(>[role=tab][aria-selected=false]):hover{background:var(--fc-hover);border-radius:10px}
+/* Let each native composer variant choose its own surface and corner geometry. */
+html[data-fade-codex] [data-composer-surface-variant]:not([data-composer-surface-variant=inline]):not([data-composer-surface-variant=document]){--composer-layout-surface-background:var(--fc-panel)!important;--composer-layout-surface-shadow:inset 0 0 0 1px var(--fc-control-border),0 5px 18px #00000012!important}
+/* Breadcrumbs are inline navigation, not toolbar capsules. */
+html[data-fade-codex] [data-testid="viewer-header"] li>button:not([class*="_compoundControl_"]):not(:disabled):not([aria-disabled=true]):not([data-disabled]){background:transparent!important;box-shadow:none!important;color:var(--fc-icon)!important}
+html[data-fade-codex] [data-testid="viewer-header"] li>button:not([class*="_compoundControl_"]):not(:disabled):not([aria-disabled=true]):not([data-disabled]):hover{color:var(--fc-fg)!important;text-decoration:underline;text-underline-offset:3px}
+/* Capsules and split buttons own their perimeter; their children do not. */
+html[data-fade-codex] [data-testid="viewer-header"] [class*="_capsule_"]{background:var(--fc-panel)!important;box-shadow:inset 0 0 0 1px var(--fc-divider)!important}
+html[data-fade-codex] [data-testid="viewer-header"] [class*="_capsule_"] nav{background:transparent!important}
+html[data-fade-codex] [data-testid="viewer-header"] [class*="_compound_"]{background:var(--fc-control)!important;box-shadow:inset 0 0 0 1px var(--fc-control-border)!important}
+html[data-fade-codex] [data-testid="viewer-header"] button[class*="_compoundControl_"]{background:transparent!important;box-shadow:none!important;color:var(--fc-fg)!important}
+html[data-fade-codex] [data-testid="viewer-header"] button[class*="_compoundControl_"]:not(:disabled):not([aria-disabled=true]):not([data-disabled]):hover{background:var(--fc-control-hover)!important}
+html[data-fade-codex] [data-testid="viewer-header"] [class*="_compound_"]:has(button:hover){box-shadow:inset 0 0 0 1px var(--fc-icon)!important}
+html[data-fade-codex] [data-testid="viewer-header"] button[class*="_compoundControl_"]:focus-visible{outline-offset:-3px}
+
+/* Request-card focus stays monochrome; do not recolor semantic alerts or titlebar. */
+html[data-fade-codex] [data-codex-composer-request-navigation]{--color-ring:var(--fc-icon)}
+html[data-fade-codex] [data-codex-composer-request-navigation] [class~="focus-within:ring-ring"]:focus-within{--tw-ring-color:var(--fc-icon)!important}
+/* Normal prose uses semantic elements; CodeMirror marks are adapted in fade.js. */
+html[data-fade-codex] [data-app-shell-main-content-layout] a[href]{color:var(--fc-link)!important;text-decoration:underline;text-underline-offset:.16em}
+html[data-fade-codex] [data-app-shell-main-content-layout] a[href]:hover{color:var(--fc-link-hover)!important}
+html[data-fade-codex] code:not(pre code):not([data-code-block] code){background:var(--fc-inline-bg)!important;color:var(--fc-inline-fg)!important;border-radius:4px;padding:.08em .32em;box-shadow:inset 0 0 0 1px var(--fc-inline-border);box-decoration-break:clone;-webkit-box-decoration-break:clone}
+

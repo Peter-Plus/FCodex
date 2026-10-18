@@ -1,0 +1,1 @@
+const fs=require('fs');const p='build-ui.mjs';let s=fs.readFileSync(p,'utf8');s=s.replace(/const classic=read\('backups\/baseline-20261017-050636\/fade.js'\);\r?\nconst bridge=[^\r\n]+/,"const bridge=read('src/theme-bridge.js');");fs.writeFileSync(p,s);

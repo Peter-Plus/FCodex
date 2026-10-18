@@ -1,0 +1,179 @@
+{
+  "pages": [
+    {
+      "active": "false",
+      "nodes": 893,
+      "editors": 1
+    },
+    {
+      "active": "true",
+      "nodes": 581,
+      "editors": 1
+    },
+    {
+      "active": "false",
+      "nodes": 308,
+      "editors": 1
+    },
+    {
+      "active": "false",
+      "nodes": 663,
+      "editors": 1
+    }
+  ],
+  "configs": [
+    {
+      "component": "qgt",
+      "maxPages": 10,
+      "ttlSeconds": 600,
+      "retainConversations": true,
+      "retainedDestinations": 6
+    },
+    {
+      "component": "qgt",
+      "retainedViews": 4,
+      "activation": 28,
+      "views": [
+        {
+          "route": "local-thread",
+          "lastUsed": 26,
+          "attributes": {
+            "state": "retained",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 6,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": true
+          }
+        },
+        {
+          "route": "local-thread",
+          "lastUsed": 28,
+          "attributes": {
+            "state": "retained",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 4,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        },
+        {
+          "route": "chatgpt-thread",
+          "lastUsed": 25,
+          "attributes": {
+            "state": "mounted",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 6,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        },
+        {
+          "route": "local-thread",
+          "lastUsed": 27,
+          "attributes": {
+            "state": "mounted",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 5,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        }
+      ]
+    },
+    {
+      "component": "Kgt",
+      "maxPages": 10,
+      "ttlSeconds": 600,
+      "enabled": true,
+      "retainConversations": true,
+      "retainedDestinations": 6
+    },
+    {
+      "component": "qgt",
+      "maxPages": 10,
+      "ttlSeconds": 600,
+      "retainConversations": true,
+      "retainedDestinations": 6
+    },
+    {
+      "component": "qgt",
+      "retainedViews": 4,
+      "activation": 28,
+      "views": [
+        {
+          "route": "local-thread",
+          "lastUsed": 26,
+          "attributes": {
+            "state": "retained",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 6,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": true
+          }
+        },
+        {
+          "route": "local-thread",
+          "lastUsed": 28,
+          "attributes": {
+            "state": "retained",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 4,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        },
+        {
+          "route": "chatgpt-thread",
+          "lastUsed": 25,
+          "attributes": {
+            "state": "mounted",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 6,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        },
+        {
+          "route": "local-thread",
+          "lastUsed": 27,
+          "attributes": {
+            "state": "mounted",
+            "retentionEnabled": true,
+            "maxPages": 10,
+            "cachedPageCount": 5,
+            "capacityEvictionCount": 0,
+            "ttlSeconds": 600,
+            "contentReused": false
+          }
+        }
+      ]
+    },
+    {
+      "component": "Kgt",
+      "maxPages": 10,
+      "ttlSeconds": 600,
+      "enabled": true,
+      "retainConversations": true,
+      "retainedDestinations": 6
+    }
+  ],
+  "domNodes": 4713,
+  "heap": {
+    "used": 435460144,
+    "total": 558808128
+  }
+}

@@ -1,0 +1,158 @@
+/* The wordmark reveals only the original icon rail, not the project sidebar. */
+html[data-fade-codex]{--fade-workspace-inset:0px;--fade-navigation-width:60px;--fade-navigation-clip:inset(0);--fade-rail-duration:320ms;--fade-rail-ease:cubic-bezier(.22,.8,.25,1)}
+html[data-fade-codex][data-fade-rail-open]{--fade-workspace-inset:var(--fade-navigation-width);--fade-navigation-clip:inset(0)}
+/* Reserve the rail's width in the shared shell, so chat and file panes reflow together. */
+html[data-fade-codex] [data-app-shell-frame]{padding-left:var(--fade-workspace-inset)!important;min-width:0!important;transition:padding-left var(--fade-rail-duration) var(--fade-rail-ease)}
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) .app-shell-left-panel{
+ opacity:1!important;visibility:hidden!important;z-index:2147483001!important;
+ background:transparent!important;box-shadow:none!important;border:0!important;
+}
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) .app-shell-left-panel,
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) .app-shell-left-panel :has([data-app-navigation-rail]){
+ overflow:visible!important;contain:none!important;transform:none!important;filter:none!important;perspective:none!important;
+}
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) [data-app-navigation-rail]{
+ position:fixed!important;left:0!important;top:43px!important;bottom:0!important;
+ width:var(--fade-navigation-width)!important;min-width:var(--fade-navigation-width)!important;height:auto!important;
+ visibility:visible!important;pointer-events:none!important;z-index:2147483001!important;
+ translate:-100% 0;transition:translate var(--fade-rail-duration) var(--fade-rail-ease)!important;
+}
+html[data-fade-shell=orb]:not([data-fade-settings])[data-fade-rail-open]:not([data-fade-native-tools]) [data-app-navigation-rail]{translate:0 0;pointer-events:auto!important}
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) [data-app-navigation-rail] *,
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]) [data-app-navigation-rail] [data-sidebar-destination]{visibility:visible!important}
+html[data-fade-shell=orb]:not([data-fade-settings])[data-fade-rail-open] [data-app-navigation-rail] [data-sidebar-destination]{pointer-events:auto!important}
+html[data-fade-shell=orb]:not([data-fade-settings]):not([data-fade-native-tools]):not([data-fade-account-access]) [data-app-navigation-rail] [data-fade-account-source]{
+ position:static!important;inset:auto!important;width:40px!important;height:40px!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;
+}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex]{--fade-rail-duration:0ms}}
+/* Light rail: neutral surface with a restrained purple selection. Tokens stay local. */
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail]{
+ --fc-rail:#eaeaea;--fc-icon:#656569;--fc-hover:#e1e1e3;--fc-selected:#ddd0ed;
+ --fc-active:#e2d7ef;--fc-on-active:#684392;
+ background:#eaeaea!important;border:0!important;
+ box-shadow:3px 0 10px #00000006!important;
+}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] button{
+ color:var(--fc-icon)!important;
+ --button-text-color:var(--fc-icon);--button-text-color-hover:#444448;
+ border-radius:11px;
+}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] button:not([data-selected]):not([aria-current=page]):hover{
+ background-color:var(--fc-hover)!important;
+}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] button:is([data-selected],[aria-current=page]){
+ background-color:var(--fc-active)!important;color:var(--fc-on-active)!important;
+ --button-background-color:var(--fc-active)!important;--button-background-color-hover:#dacbe9!important;
+ --button-text-color:var(--fc-on-active)!important;--button-text-color-hover:var(--fc-on-active)!important;
+ box-shadow:none!important;
+}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] button:is([data-selected],[aria-current=page])>span{color:var(--fc-on-active)!important}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] button:is([data-selected],[aria-current=page])::before{background-color:var(--fc-active)!important}
+html[data-fade-codex][data-fade-polarity=light] [data-app-navigation-rail] :is(hr,[role=separator]){border-color:#0000000b!important;background-color:#0000000b!important}
+/* Only activate after real navigation entries were recognized. Keep native
+   controls mounted so their normal handlers and lazy lists remain usable. */
+html[data-fade-shell=orb]:not([data-fade-settings]) .app-shell-left-panel{
+ --spacing-token-sidebar:310px!important;--codex-sidebar-preferred-width:310px!important;
+ position:fixed!important;left:-10000px!important;top:52px!important;
+ width:310px!important;height:calc(100dvh - 72px)!important;max-width:310px!important;
+ flex:none!important;pointer-events:none!important;opacity:0!important;
+}
+html[data-fade-shell=orb]:not([data-fade-settings]) [data-app-shell-frame]{--spacing-token-sidebar:0px!important;--codex-sidebar-preferred-width:0px!important}
+html[data-fade-shell=orb]:not([data-fade-settings]) [data-app-shell-main-surface]{border-radius:18px!important}
+html[data-fade-shell=orb]:not([data-fade-settings]) [data-sidebar-destination]{visibility:hidden!important;pointer-events:none!important}
+html[data-fade-shell=orb]:not([data-fade-settings])[data-fade-native-tools] .app-shell-left-panel{
+ left:18px!important;z-index:2147482999!important;pointer-events:auto!important;
+ opacity:1!important;border:1px solid var(--fc-line)!important;border-radius:18px!important;
+ box-shadow:0 18px 65px #0003!important;background:var(--fc-panel)!important;
+}
+html[data-fade-shell=orb]:not([data-fade-settings])[data-fade-native-tools] [data-sidebar-destination]{visibility:visible!important;pointer-events:auto!important}
+html[data-fade-shell=orb]:not([data-fade-settings]) .thread-scroll-container{scrollbar-color:var(--fc-line) transparent}
+@media(prefers-reduced-motion:no-preference){html[data-fade-shell=orb]:not([data-fade-settings]) [data-composer-body]{transition:border-color .2s,box-shadow .2s}}
+/* A quiet header shares the conversation background. Only the transcript fades;
+   the wordmark, title, composer and native window controls stay fully visible. */
+html[data-fade-codex] [class*="_ApplicationMenuTopBar_"],
+html[data-fade-codex] [data-fade-header-hidden]{display:none!important}
+html[data-fade-codex][data-fade-polarity]{--fc-shell:var(--fc-chat);--fc-bg:var(--fc-chat)}
+html[data-fade-codex] [data-app-shell-frame]{padding-top:43px!important;box-sizing:border-box!important;background:var(--fc-chat)!important;--app-shell-titlebar-height:0px!important;--app-shell-titlebar-top-inset:0px!important;--app-shell-application-menu-height:0px!important;--app-shell-header-height:0px!important}
+html[data-fade-codex] [data-app-shell-main-content-layout]{--app-shell-main-toolbar-height:0px!important;--app-shell-main-content-frame-top-offset:0px!important}
+html[data-fade-codex] [data-app-shell-main-surface]{border-radius:0!important;border:0!important;box-shadow:none!important}
+html[data-fade-codex] .thread-scroll-container{
+ mask-image:linear-gradient(to bottom,transparent 0px,#000 28px,#000 100%)!important;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0px,#000 28px,#000 100%)!important;
+ mask-size:100% 100%!important;-webkit-mask-size:100% 100%!important;
+ mask-repeat:no-repeat!important;-webkit-mask-repeat:no-repeat!important;
+}
+html[data-fade-codex][data-fade-native-tools] [class*="_ApplicationMenuTopBar_"],
+html[data-fade-codex][data-fade-native-tools] [data-fade-header-hidden]{display:flex!important;position:fixed!important;left:348px!important;right:20px!important;top:76px!important;width:auto!important;max-width:calc(100vw - 368px)!important;z-index:2147482999!important;background:var(--fc-panel)!important;border:1px solid var(--fc-line)!important;border-radius:12px!important;box-shadow:0 12px 40px #0002!important}
+html[data-fade-codex][data-fade-native-tools] [data-fade-header-hidden]{top:124px!important}
+@media(max-width:700px){html[data-fade-codex][data-fade-native-tools] [class*="_ApplicationMenuTopBar_"],html[data-fade-codex][data-fade-native-tools] [data-fade-header-hidden]{left:18px!important;right:18px!important;max-width:none!important}}
+
+/* Remove the legacy inset divider and the native decorative page outline. */
+html[data-fade-codex] [data-app-shell-titlebar]{
+ background:var(--fc-chat)!important;border:0!important;box-shadow:none!important;
+}
+html[data-fade-codex] [class*="_PageSurface_"]{
+ --app-shell-page-surface-shadow:none!important;border:0!important;box-shadow:none!important;
+}
+html[data-fade-codex] [data-app-shell-titlebar]::before,
+html[data-fade-codex] [data-app-shell-titlebar]::after,
+html[data-fade-codex] [class*="_PageSurface_"]::before,
+html[data-fade-codex] [class*="_PageSurface_"]::after{
+ border:0!important;box-shadow:none!important;
+}
+/* Keep the real application menu triggers mounted for native menus/shortcuts. */
+html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"]{
+ display:flex!important;position:fixed!important;left:auto!important;right:289px!important;top:6px!important;
+ width:228px!important;max-width:none!important;height:30px!important;min-height:0!important;
+ padding:0!important;border:0!important;border-radius:8px!important;box-shadow:none!important;
+ background:var(--fc-chat)!important;z-index:2147482999!important;-webkit-app-region:no-drag;
+ opacity:0;visibility:hidden;pointer-events:none;clip-path:inset(0 0 0 100%);
+ transition:clip-path .24s ease,opacity .18s ease,visibility .24s;
+}
+html[data-fade-codex][data-fade-shell][data-fade-menu-open] [class*="_ApplicationMenuTopBar_"]{
+ opacity:1;visibility:visible;pointer-events:auto;clip-path:inset(0);
+}
+html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"]>:not(:has([id="application-menu-trigger-file-menu"])){display:none!important}
+html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"]>:has([id="application-menu-trigger-file-menu"]){display:flex!important;flex:1;justify-content:space-between;padding:0!important;gap:2px!important}
+html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"] [id^="application-menu-trigger-"]{height:30px!important;padding:0 9px!important;font-size:12px!important;color:var(--fc-fg)!important;-webkit-app-region:no-drag}
+@media(max-width:560px){html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"]{right:282px!important;width:196px!important}html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"] [id^="application-menu-trigger-"]{padding:0 6px!important}}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex][data-fade-shell] [class*="_ApplicationMenuTopBar_"]{transition:none}}
+html[data-fade-codex] [data-fade-home-anchor]{visibility:hidden!important;pointer-events:none!important}
+
+/* Settings keeps its native directory and sidebar width. */
+html[data-fade-codex][data-fade-settings]{--fade-workspace-inset:0px}
+html[data-fade-codex] [data-fade-history-source]{display:none!important}
+html[data-fade-codex] .fade-rail-history{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px!important;width:52px!important;min-width:52px;box-sizing:border-box;flex:none;align-self:center;margin:0!important;padding:0!important}
+html[data-fade-codex] [data-app-navigation-rail] .fade-rail-history button{display:grid!important;place-items:center!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;height:28px!important;margin:0!important;padding:0!important;border:0;border-radius:7px;background:transparent;pointer-events:auto}
+html[data-fade-codex] .fade-rail-history svg{display:block;width:17px;height:17px;margin:0!important;transform:none!important}
+html[data-fade-codex] .fade-rail-history button:disabled{opacity:.25;pointer-events:none}
+html[data-fade-project-menu] [data-radix-popper-content-wrapper]{z-index:2147483005!important;pointer-events:auto!important}
+/* Native menus and modal portals stay above the open fan. */
+html:is([data-fade-nav-open],[data-fade-picker-open]) [data-radix-popper-content-wrapper],
+html:is([data-fade-nav-open],[data-fade-picker-open]) [role="dialog"],
+html:is([data-fade-nav-open],[data-fade-picker-open]) [role="alertdialog"]{z-index:2147483006!important}
+html:is([data-fade-nav-open],[data-fade-picker-open]) body>div:has([role="dialog"]):not(:has(.app-shell-left-panel)):not(#fade-codex-layer),
+html:is([data-fade-nav-open],[data-fade-picker-open]) body>div:has([role="alertdialog"]):not(:has(.app-shell-left-panel)):not(#fade-codex-layer){z-index:2147483006!important}
+html:is([data-fade-nav-open],[data-fade-picker-open]) .codex-dialog-overlay{z-index:2147483005!important}
+html[data-fade-codex] [data-fade-title-layout]{padding-top:40px!important;box-sizing:border-box!important}
+
+/* A quiet boundary between app navigation and conversation content. */
+html[data-fade-codex] #fade-codex-layer::before{
+ content:"";position:absolute;left:0;right:0;top:43px;height:1px;
+ background:color-mix(in srgb,var(--purple) 30%,transparent);
+ pointer-events:none;transition:opacity 180ms ease;
+}
+html[data-fade-codex][data-fade-nav-open] #fade-codex-layer::before{opacity:.3}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] #fade-codex-layer::before{transition:none}}
+/* Blur native content directly: the injected shadow layer isolates backdrop sampling. */
+html[data-fade-codex] body>#root{transition:filter 220ms ease}
+html[data-fade-codex][data-fade-nav-open] body>#root{filter:blur(4px)}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] body>#root{transition:none}}
+/* Share the same background blur across native content and Fade chrome. */
+html[data-fade-codex]{--fade-background-blur:0px}
+html[data-fade-codex][data-fade-nav-open]{--fade-background-blur:4px}
+/* Full-window native viewers start below Fade's application header. */
+html[data-fade-codex] .codex-dialog.inset-0:has([data-testid="viewer-header"]){
+ top:44px!important;bottom:0!important;
+ height:calc(100dvh - 44px)!important;max-height:calc(100dvh - 44px)!important;
+}
