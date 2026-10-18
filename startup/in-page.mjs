@@ -23,7 +23,7 @@ export async function installInPage(target,media={intro:'app://-/fade-intro.mp4'
   if(baked.from!==preset.loopFrom||baked.to!==preset.loopTo)throw Error('Startup loop preset changed; run startup/bake-loop.mjs first');
   await evaluate(`(()=>{
    window.__fadeInPageFinish?.();
-   const frame=document.createElement('iframe');frame.id='fade-startup-frame';frame.name=${JSON.stringify('fade-startup-'+token)};frame.title='Fade 启动动画';frame.allow='autoplay';
+   const frame=document.createElement('iframe');frame.id='fade-startup-frame';frame.name=${JSON.stringify('fade-startup-'+token)};frame.title='FCodex 启动动画';frame.allow='autoplay';
    frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:#191919;-webkit-app-region:no-drag';
    frame.srcdoc=${JSON.stringify(html)};document.documentElement.append(frame);
    window.__fadeInPageState={done:false,started:performance.now()};

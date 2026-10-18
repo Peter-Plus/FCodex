@@ -2,8 +2,10 @@
 const fadeWindowElectron=require('electron');
 const fadeCustomWindows=new WeakSet();
 const fadeWindowState=w=>({custom:true,fullscreen:w.isFullScreen(),maximized:w.isMaximized(),minimized:w.isMinimized()});
-function fadeRegisterWindow(w){
+function fadeRegisterWindow(w,workspaceFactory){
  fadeCustomWindows.add(w);
+ if(typeof fadeWorkspaceFactories!=='undefined'&&workspaceFactory)fadeWorkspaceFactories.set(w,workspaceFactory);
+ if(typeof fadeWorkspaceWatch==='function')fadeWorkspaceWatch(w);
  // The native bootstrap sets the official AUMID. Override the window's shell
  // identity too: setIcon alone does not override a grouped taskbar icon.
  if(process.platform==='win32'&&process.env.FADE_LAUNCHER_PATH&&process.env.FADE_ICON_PATH){
@@ -20,7 +22,7 @@ function fadeRegisterWindow(w){
  const refreshFadeIcon=()=>{if(!w.isDestroyed())w.setIcon(require('node:path').join(__dirname,'fade-codex-icon.png'))};
  w.on('show',refreshFadeIcon);
  w.webContents.on('did-finish-load',refreshFadeIcon);
- fadeAttachStartupView(w);
+ if(typeof fadeCreatingWorkspaceWindow==='undefined'||!fadeCreatingWorkspaceWindow)fadeAttachStartupView(w);
  // Theme/backdrop refreshes must not re-enable the OS caption overlay.
  w.setTitleBarOverlay=()=>{};
  const publish=()=>{if(!w.isDestroyed()&&!w.webContents.isDestroyed())w.webContents.send('fade:window-state',fadeWindowState(w))};

@@ -1,0 +1,64 @@
+/* Shallow paper relief, confined to conversation scrollports. The baked image
+   stays behind content; no overlay, animation, layout or hit-testing changes. */
+html[data-fade-codex][data-fade-shell=orb]{
+ --fc-chat:#242424;
+ --fc-paper-wash:rgb(36 36 36 / 94%);
+ --fc-paper-texture:url('__FADE_PAPER_TEXTURE__');
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity=light]{
+ --fc-chat:#f5f5f4;
+ --fc-paper-wash:rgb(245 245 244 / 60%);
+}
+html[data-fade-codex][data-fade-shell=orb] [data-app-shell-main-surface] [data-app-shell-focus-area=main]{
+ background-color:var(--fc-chat)!important;
+ background-image:linear-gradient(var(--fc-paper-wash),var(--fc-paper-wash)),var(--fc-paper-texture)!important;
+ background-size:auto,720px 720px!important;
+ background-repeat:repeat!important;
+ background-attachment:scroll!important;
+}
+/* A single paper plane also covers the native scrollbar gutter. */
+html[data-fade-codex][data-fade-shell=orb] .thread-scroll-container{
+ background:transparent!important;
+}
+html[data-fade-codex][data-fade-shell=orb] .thread-scroll-container[data-fade-paper-ready]{
+ mask-image:none!important;-webkit-mask-image:none!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-ready] [class*="_background_"]:is([class*="_surface_"],[class*="_fade_"]){
+ display:none!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-ready] [data-thread-scroll-footer]{background:transparent!important}
+html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-transcript]{
+ mask-image:linear-gradient(to bottom,transparent var(--fc-paper-top),#000 calc(var(--fc-paper-top) + 28px),#000 var(--fc-paper-solid),transparent var(--fc-paper-end))!important;
+ -webkit-mask-image:linear-gradient(to bottom,transparent var(--fc-paper-top),#000 calc(var(--fc-paper-top) + 28px),#000 var(--fc-paper-solid),transparent var(--fc-paper-end))!important;
+ clip-path:inset(0 0 var(--fc-paper-cut) 0);
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-fade-composer][data-composer-surface-variant]{
+ --fc-panel:#2b2b2b;--fc-line:#444;--fc-control-border:#444;
+ --composer-layout-surface-background:var(--fc-panel)!important;
+ --composer-layout-surface-shadow:inset 0 0 0 1px var(--fc-line),0 3px 12px #00000016!important;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity=light] [data-fade-composer][data-composer-surface-variant]{
+ --fc-panel:#fdfdfc;--fc-line:#d9d9d7;--fc-control-border:#d9d9d7;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-fade-composer][data-composer-surface-variant]:focus-within{
+ --composer-layout-surface-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fc-accent) 65%,var(--fc-line)),0 3px 12px #00000016!important;
+}
+@media(forced-colors:active){
+ html[data-fade-codex][data-fade-shell=orb] [data-app-shell-main-surface] [data-app-shell-focus-area=main],
+ html[data-fade-codex][data-fade-shell=orb] .thread-scroll-container{background-image:none!important}
+}
+/* Per-polarity choices are applied by the local background preferences. */
+html[data-fade-codex][data-fade-shell=orb][data-fade-background=solid]{--fc-chat:#1e2027}
+html[data-fade-codex][data-fade-shell=orb][data-fade-background=solid][data-fade-polarity=light]{--fc-chat:#f2f3f7}
+html[data-fade-codex][data-fade-shell=orb][data-fade-background=solid] [data-app-shell-main-surface] [data-app-shell-focus-area=main]{background-image:none!important}
+html[data-fade-codex][data-fade-shell=orb][data-fade-background=custom] [data-app-shell-main-surface] [data-app-shell-focus-area=main]{
+ background-image:none!important;position:relative;isolation:isolate;overflow:clip;
+}
+/* Transform the texture only, preserving foreground geometry and sharpness. */
+html[data-fade-codex][data-fade-shell=orb][data-fade-background=custom] [data-app-shell-main-surface] [data-app-shell-focus-area=main]::before{
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background-image:var(--fc-custom-background);background-size:var(--fc-custom-size,cover);background-repeat:var(--fc-custom-repeat,no-repeat);background-position:center;
+ transform:var(--fc-custom-transform);filter:blur(var(--fc-custom-blur,0px));opacity:var(--fc-custom-opacity,.35);
+}
+@media(forced-colors:active){html[data-fade-background] [data-app-shell-focus-area=main]::before{display:none!important}}
+@media(forced-colors:active){html[data-fade-codex][data-fade-shell=orb][data-fade-background] [data-app-shell-main-surface] [data-app-shell-focus-area=main]{background-image:none!important}}

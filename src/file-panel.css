@@ -1,6 +1,18 @@
 /* Style the actual right workspace before its content mounts. Never match toolbar buttons. */
-html[data-fade-codex]{--fc-file-glass:#292929dc;--fc-file-edge:#ffffff23;--fc-file-line:#ffffff12}
-html[data-fade-codex][data-fade-polarity=light]{--fc-file-glass:#ffffffe6;--fc-file-edge:#0000001b;--fc-file-line:#0000000c}
+html[data-fade-codex]{--fc-file-glass:#272a32;--fc-file-edge:#ffffff23;--fc-file-line:#343842;--fc-file-body:#23262e;--fc-file-scroll:#535a68;--fc-file-scroll-hover:#798292}
+html[data-fade-codex][data-fade-polarity=light]{--fc-file-glass:#f7f8fa;--fc-file-edge:#0000001b;--fc-file-line:#e6e8ee;--fc-file-body:#fcfcfd;--fc-file-scroll:#bdc3cf;--fc-file-scroll-hover:#939dab}
+/* Scope document paint to native file/review cards, never page content or the
+   application-wide document palette. Diff semantic colors stay native. */
+html[data-fade-codex]{--fc-file-header-divider:#505663}
+html[data-fade-codex][data-fade-polarity=light]{--fc-file-header-divider:#cbd0da}
+/* Strengthen only the header/content boundary, not inputs or card outlines. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header],
+html[data-fade-codex] aside[data-fade-panel-header=fallback]>.fade-panel-chrome{
+ border-bottom:1px solid var(--fc-file-header-divider)!important;
+}
+html[data-fade-codex] aside[data-fade-file-panel]:has([data-fade-viewer-header]:not([data-fade-viewer-header=browser])){
+ --fc-document:var(--fc-file-body);
+}
 html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"]{
  margin:40px 22px 22px 12px!important;height:calc(100% - 62px)!important;
  border:1px solid var(--fc-file-edge)!important;border-radius:22px!important;
@@ -44,8 +56,24 @@ html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-middle
 html[data-fade-codex] [data-fade-header-layout=stacked][data-fade-close-host] [data-fade-header-middle]{margin-inline-end:36px}
 html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-trailing]{grid-column:1/-1!important;grid-row:2;justify-self:start;margin-inline-start:0!important;flex-wrap:wrap;width:100%!important}
 html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-trailing]>div:not(.fade-file-heading){flex-wrap:wrap;min-width:0}
+/* File/review actions occupy at most one additional row. Overflow stays inside
+   this row, leaving the path and close control stationary and reachable. */
+html[data-fade-codex] [data-fade-viewer-header]:not([data-fade-viewer-header=browser])[data-fade-header-layout=stacked] [data-fade-header-trailing]{
+ flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
+ scrollbar-width:thin;scrollbar-color:var(--fc-file-scroll) transparent;
+}
+html[data-fade-codex] [data-fade-viewer-header]:not([data-fade-viewer-header=browser])[data-fade-header-layout=stacked] [data-fade-header-trailing]:hover{scrollbar-color:var(--fc-file-scroll-hover) transparent}
+html[data-fade-codex] [data-fade-viewer-header]:not([data-fade-viewer-header=browser])[data-fade-header-layout=stacked] [data-fade-header-trailing]>div{
+ flex-wrap:nowrap;flex-shrink:0;
+}
 /* Browser navigation is its own three-slot layout: nav / address / actions.
    Only the address moves to a full second row at narrow pane widths. */
+/* Image viewers add a native path-copy group before search. Preserve all four
+   React-owned slots and share the first row with close in stacked layouts. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-header-four]{grid-template-columns:minmax(0,1fr) max-content max-content max-content!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-header-four][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content max-content!important}
+html[data-fade-codex] [data-fade-header-four][data-fade-header-layout=stacked] [data-fade-header-auxiliary]{grid-column:2;grid-row:1}
+html[data-fade-codex] [data-fade-header-four][data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:3;grid-row:1}
 html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser]{grid-template-columns:max-content minmax(0,1fr) max-content!important}
 html[data-fade-codex] [data-fade-viewer-header=browser] [data-fade-header-middle]{min-width:0!important;width:100%;padding-inline:0!important}
 html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important}
@@ -59,9 +87,24 @@ html[data-fade-codex] [data-fade-viewer-header] [class*="_capsule_"]{padding:0!i
 html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser] [class*="_inputSurface_"]{height:28px!important;border-radius:7px!important;background:color-mix(in srgb,var(--fc-fg) 5%,transparent)!important;box-shadow:inset 0 0 0 1px var(--fc-file-line)!important}
 html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser] [class*="_inputSurface_"]:focus-within{box-shadow:inset 0 0 0 1px var(--fc-send)!important}
 html[data-fade-codex] [data-fade-viewer-header=browser] input{background:transparent!important;box-shadow:none!important;border:0!important}
-/* Electron's web surface is a separate native view and cannot be clipped by
-   an ancestor's CSS radius. Keep its measured bounds inside the card corners. */
-html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded]{padding:0 6px 14px!important;box-sizing:border-box!important}
+/* The browser surface is portaled outside the aside. Its actual host needs
+   its own clipping; the card's overflow cannot reach across the portal. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded]{padding:0!important;box-sizing:border-box!important}
+/* Let the browser's native header shell follow the adapted toolbar height,
+   including its two-row narrow layout, instead of retaining a 48px spacer. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded] [class~="h-12"]:has([data-browser-sidebar-toolbar]){
+ height:auto!important;min-height:0!important;border:0!important;background:transparent!important;
+}
+html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded] [class~="h-full"]:has(>[data-browser-sidebar-toolbar]){height:auto!important}
+/* Let the measured browser viewport meet the inside edge of the card. */
+html[data-fade-codex] aside[data-fade-file-panel] [data-browser-sidebar-chrome-expanded] [data-app-shell-pane-content-viewport]{
+ margin:0!important;min-height:0!important;
+}
+/* Clip the actual webview and cursor overlay together. Preserve native clip-path,
+   visibility and placement used for tab switching and pane occlusion. */
+html[data-fade-codex] [data-browser-host-root] > [data-browser-sidebar-webview][data-app-shell-focus-area="right-panel"]{
+ border-radius:0 0 21px 21px;overflow:hidden!important;
+}
 html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header] [class*="_compound_"]{background:transparent!important;box-shadow:none!important;border-radius:7px!important;height:28px!important;align-self:center!important}
 html[data-fade-codex] [data-fade-viewer-header] button{border-radius:7px!important;box-shadow:none!important;border-color:transparent!important;min-height:28px;height:28px!important}
 html[data-fade-codex] [data-fade-viewer-header] button[class*="aspect-square"]{width:28px!important;min-width:28px!important}
@@ -93,6 +136,7 @@ html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="gr
  background:color-mix(in srgb,var(--fc-fg) 28%,transparent)!important;
  transition:opacity .16s ease,width .16s ease,height .16s ease,background-color .16s ease,box-shadow .16s ease;
 }
+html[data-fade-codex] aside[data-fade-panel-dragging] [class~="group/panel-resizer"][class~="left-0"] .sidebar-resize-handle-line,
 html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] [role="separator"]:is(:hover,:active,:focus-visible) .sidebar-resize-handle-line{
  opacity:1!important;width:4px!important;height:44px!important;background:#a078ce!important;
  box-shadow:0 0 10px #a078ce30;
@@ -112,3 +156,6 @@ html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="gr
 html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="group/panel-resizer"][class~="left-0"] [role="separator"]::after{
  translate:none!important;transform:none!important;
 }
+
+/* Full workspace preview is not supported by the card layout yet. */
+html[data-fade-codex] button[data-app-shell-workspace-layout-toggle="right-panel"]{display:none!important}

@@ -13,6 +13,7 @@ test('startup normalizes an already mounted ChatGPT home before allowing animati
   disposeGptTabs:{get ready(){return ready},home(){homeCalls++;return true}},
   disposeHomeOrb:{refresh(){},startupTarget(){targetCalls++;return target}},
   navOpen:false,closeNav(){},
+  windowMode:{enabled:false},
  });
  vm.runInContext(handoff,ctx);
  assert.equal(ctx.prepareStartupHome(),null);assert.equal(homeCalls,0);

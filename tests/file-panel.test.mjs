@@ -93,3 +93,42 @@ test('browser and aggregate diff never inherit the path of a neighbouring file p
   assert.equal(c.fadePanelFileMetadata(panel,header),null);
  }
 });
+
+test('drag visibility survives leaving the grip and clears on release, cancellation, blur and disposal',()=>{
+ const listeners=new Map(),attrs=new Set();
+ const win={addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)};
+ const doc={defaultView:win,documentElement:{hasAttribute:()=>false}};
+ const panel={setAttribute:name=>attrs.add(name),removeAttribute:name=>attrs.delete(name)};
+ const event={button:0,pointerId:7,target:{closest:()=>({closest:()=>panel})}};
+ const dispose=setup().fadeInstallPanelDragState(doc);
+ const held=()=>attrs.has('data-fade-panel-dragging');
+ listeners.get('pointerdown')(event);assert(held());
+ listeners.get('pointerup')({pointerId:8});assert(held());
+ listeners.get('pointerup')({pointerId:7});assert(!held());
+ for(const type of ['pointercancel','blur']){listeners.get('pointerdown')(event);assert(held());listeners.get(type)({pointerId:7});assert(!held())}
+ listeners.get('pointerdown')(event);dispose();assert(!held());assert.equal(listeners.size,0);
+});
+
+test('card drag clamps overflow without changing normal pointer movement or taking pointer capture',()=>{
+ const listeners=new Map(),attrs=new Set();
+ const target={addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)};
+ const panel={setAttribute:n=>attrs.add(n),removeAttribute:n=>attrs.delete(n),getBoundingClientRect:()=>({width:450})};
+ const grip={closest:()=>panel,getAttribute:n=>({'aria-valuenow':'450','aria-valuemin':'320','aria-valuemax':'700'})[n]};
+ const dispose=setup().fadeInstallPanelDragState({defaultView:target});
+ listeners.get('pointerdown')({button:0,pointerId:2,clientX:850,target:{closest:()=>grip}});
+ const normal={pointerId:2,clientX:800};listeners.get('pointermove')(normal);assert.equal(normal.clientX,800);
+ const wide={pointerId:2,clientX:100};listeners.get('pointermove')(wide);assert.equal(wide.clientX,601);
+ const narrow={pointerId:2,clientX:1500};listeners.get('pointermove')(narrow);assert.equal(narrow.clientX,980);
+ const other={pointerId:3,clientX:100};listeners.get('pointermove')(other);assert.equal(other.clientX,100);
+ const release={pointerId:2,clientX:100};listeners.get('pointerup')(release);assert.equal(release.clientX,601);assert.equal(attrs.size,0);
+ dispose();assert.equal(listeners.size,0);
+});
+test('stacked action wheel scrolls horizontally without hijacking zoom or ordinary headers',()=>{
+ const c=setup(),row={scrollWidth:600,clientWidth:300,scrollLeft:0};let prevented=0;
+ const header={getAttribute:()=> 'stacked'};
+ const event={deltaX:0,deltaY:3,deltaMode:1,preventDefault(){prevented++},stopPropagation(){}};
+ c.fadeScrollHeaderActions(event,row,header);assert.equal(row.scrollLeft,48);assert.equal(prevented,1);
+ c.fadeScrollHeaderActions({...event,ctrlKey:true},row,header);assert.equal(row.scrollLeft,48);
+ c.fadeScrollHeaderActions(event,row,{getAttribute:()=> 'inline'});assert.equal(row.scrollLeft,48);
+ row.scrollWidth=300;c.fadeScrollHeaderActions(event,row,header);assert.equal(prevented,1);
+});

@@ -1,4 +1,4 @@
-function fadeMessageRailInset(parentRight,fileLeft){return Math.max(6,Number.isFinite(fileLeft)?parentRight-fileLeft+6:6)}
+function fadeMessageRailInset(parentRight,fileLeft){return Math.max(18,Number.isFinite(fileLeft)?parentRight-fileLeft+18:18)}
 function fadeMessagePreviewPosition(anchor,width,height,viewportHeight){return {left:Math.max(8,anchor.left-width-8),top:Math.max(48,Math.min(anchor.top+anchor.height/2-height/2,viewportHeight-height-12))}}
 function installMessageRail(doc){
  const saved=new Map(),attrs=new Map(),observed=new Set();let pending=0,dead=false;

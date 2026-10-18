@@ -42,7 +42,7 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  function activate(tab){try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){report(e.message)}}
  function close(tab){
   const index=state.tabs.indexOf(tab);if(index<0)return;
-  if([tab.path,tab.nativePath].includes(router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
+  if([tab.path,tab.nativePath].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
   closingPath=tab.path;closingKey=router()?.location.key;state.tabs.splice(index,1);state.jobs.push({path:tab.path,id:tab.id,after:Date.now()+15000});sync();
  }
  function sync(){
@@ -51,9 +51,9 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
   const aliases=new Map();
   for(const row of rows){const raw=row.row?.getAttribute('data-app-action-sidebar-thread-id');const id=fadeCodexConversationId(row.row);if(raw&&id){const key=raw.startsWith('local:')?raw.slice(6):raw;aliases.set('/local/'+key,'/local/'+id);aliases.set('/local/'+encodeURIComponent(key),'/local/'+id)}}
   const canonical=path=>aliases.get(path)||path;
-  const activePath=canonical(loc.pathname);
+  const activePath=loc.pathname==='/'&&loc.state?.fadePaneHome||canonical(loc.pathname);
   const seen=new Map();
-  for(let i=0;i<state.tabs.length;){const tab=state.tabs[i],path=canonical(tab.path);tab.path=path;if(tab.location)tab.location.pathname=path;if(seen.has(path)){state.tabs.splice(i,1);continue}seen.set(path,tab);i++}
+  for(let i=0;i<state.tabs.length;){const tab=state.tabs[i],path=canonical(tab.path);tab.path=path;if(tab.location&&path.startsWith('/local/'))tab.location.pathname=path;if(seen.has(path)){state.tabs.splice(i,1);continue}seen.set(path,tab);i++}
   // Route is authoritative: the sidebar may still mark the last Codex task active on GPT pages.
   if(closingPath&&(loc.pathname!==closingPath||loc.key!==closingKey))closingPath=null;
   const previousPath=lastPath;
@@ -101,7 +101,8 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  function nativeNavigation(event){const message=event.data;if(message?.type!=='navigate-to-route'||typeof message.path!=='string')return;const path=message.path.split(/[?#]/)[0];if(!/^\/local\/[^/]+$/.test(path))return;pendingNativePath=path;schedule()}
  window.addEventListener?.('message',nativeNavigation);
  const interval=globalThis.setInterval(sync,1000);add.addEventListener('click',newChat);sync();
- return ()=>{dead=true;reorder.destroy();window.removeEventListener?.('message',nativeNavigation);observer.disconnect();clearTimeout(timer);globalThis.clearInterval(interval);add.removeEventListener('click',newChat);list.replaceChildren()};
+ const dispose=()=>{dead=true;reorder.destroy();window.removeEventListener?.('message',nativeNavigation);observer.disconnect();clearTimeout(timer);globalThis.clearInterval(interval);add.removeEventListener('click',newChat);list.replaceChildren()};
+ Object.assign(dispose,{activate,close,sync,tabs:()=>state.tabs,addHome(key){const tab={path:key,title:'新聊天',location:{pathname:'/',search:'',state:{sidebarProductMode:'codex',fadePaneHome:key}}};state.tabs.push(tab);activate(tab);return tab}});return dispose;
 }
 
 

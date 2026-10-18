@@ -19,7 +19,7 @@ try{
  const evaluate=async expression=>{const r=await command(target,'Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
  await command(target,'Emulation.setDeviceMetricsOverride',{width:1100,height:700,deviceScaleFactor:1,mobile:false});
  const source=await fs.readFile('src/file-panel.js','utf8'),css=await fs.readFile('theme.css','utf8')+'\n'+await fs.readFile('src/file-panel.css','utf8'),results=[];
- for(const mode of ['review','file','code','browser']){
+ for(const mode of ['review','file','code','image','browser']){
   const fixture=JSON.parse(await fs.readFile(path.join(fixtures,mode+'-fixture.json'),'utf8'));
   for(const polarity of ['light','dark'])for(const width of [320,470,760]){
    await command(target,'Page.navigate',{url:'about:blank'});
@@ -30,12 +30,20 @@ try{
     await fs.writeFile(`tests/fixtures/file-panel/${mode}-fixture.json`,JSON.stringify({nativeAssets:['app-shared-bbfeca5e5737.js','app-shared-dc7535e633d7.css'],header:fixture.header,tabId:mode==='browser'?'fixture-browser':fixture.tabId,css:nativeCss}));
    }
    await evaluate(source+'\nwindow.disposePanel=installFilePanel(document,()=>{});');await wait(160);
-   const report=await evaluate(`(()=>{const panel=document.querySelector('aside'),h=panel.querySelector('[data-fade-viewer-header]'),close=panel.querySelector('.fade-panel-chrome button');if(!h)return {missing:true};const r=h.getBoundingClientRect(),p=panel.getBoundingClientRect();const buttons=[...h.querySelectorAll('button,input')].filter(e=>e.getBoundingClientRect().width>0&&!e.closest('nav'));const bounds=buttons.map(e=>{const r=e.getBoundingClientRect();return {label:e.getAttribute('aria-label')||e.textContent.trim(),x:r.x,y:r.y,right:r.right,bottom:r.bottom,w:r.width,h:r.height}});return {width:panel.clientWidth,height:r.height,layout:h.getAttribute('data-fade-header-layout'),kind:h.getAttribute('data-fade-viewer-header'),closeTop:close.getBoundingClientRect().top-r.top,overflow:bounds.filter(b=>b.x<p.x-1||b.right>p.right+1||b.bottom>r.bottom+1),overlap:bounds.flatMap((a,i)=>bounds.slice(i+1).filter(b=>Math.min(a.right,b.right)-Math.max(a.x,b.x)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>1).map(b=>[a.label,b.label])),trailing:[...h.querySelectorAll("[data-fade-header-trailing],[data-fade-header-trailing]>div")].map(e=>({width:e.getBoundingClientRect().width,scroll:e.scrollWidth,cls:e.className,flex:getComputedStyle(e).flex})),fileActions:h.querySelectorAll('.fade-file-heading button').length,buttons:bounds}})()`);
+   const report=await evaluate(`(()=>{const panel=document.querySelector('aside'),h=panel.querySelector('[data-fade-viewer-header]'),close=panel.querySelector('.fade-panel-chrome button');if(!h)return {missing:true};const r=h.getBoundingClientRect(),p=panel.getBoundingClientRect();const buttons=[...h.querySelectorAll('button,input')].filter(e=>e.getBoundingClientRect().width>0&&!e.closest('nav'));const bounds=buttons.map(e=>{const r=e.getBoundingClientRect();const row=e.closest('[data-fade-header-trailing]');const scrollable=row&&getComputedStyle(row).overflowX==='auto';return {scrollable,label:e.getAttribute('aria-label')||e.textContent.trim(),x:r.x,y:r.y,right:r.right,bottom:r.bottom,w:r.width,h:r.height}});return {width:panel.clientWidth,height:r.height,layout:h.getAttribute('data-fade-header-layout'),kind:h.getAttribute('data-fade-viewer-header'),closeTop:close.getBoundingClientRect().top-r.top,overflow:bounds.filter(b=>(!b.scrollable&&(b.x<p.x-1||b.right>p.right+1))||b.bottom>r.bottom+1),overlap:bounds.flatMap((a,i)=>bounds.slice(i+1).filter(b=>Math.min(a.right,b.right)-Math.max(a.x,b.x)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>1).map(b=>[a.label,b.label])),trailing:[...h.querySelectorAll("[data-fade-header-trailing],[data-fade-header-trailing]>div")].map(e=>({width:e.getBoundingClientRect().width,scroll:e.scrollWidth,cls:e.className,flex:getComputedStyle(e).flex})),fileActions:h.querySelectorAll('.fade-file-heading button').length,buttons:bounds}})()`);
+   if(mode!=='browser'){
+    const scrolling=await evaluate(`(()=>{const h=document.querySelector('[data-fade-viewer-header]'),row=h.querySelector('[data-fade-header-trailing]');const overflowing=row.scrollWidth>row.clientWidth;const before=row.scrollLeft;row.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));const moved=row.scrollLeft>before;row.scrollLeft=row.scrollWidth;const last=row.querySelector('button:last-child')?.getBoundingClientRect();row.scrollLeft=0;return {overflowing,moved,height:row.clientHeight,layout:h.dataset.fadeHeaderLayout,wrap:getComputedStyle(row).flexWrap}})()`);
+    if(scrolling.layout==='stacked'){
+     assert.equal(scrolling.wrap,'nowrap','action row never wraps');
+     assert.ok(scrolling.height<=44,'single action row plus scrollbar');
+     if(scrolling.overflowing)assert.ok(scrolling.moved,'wheel reaches overflow actions');
+    }
+   }
    results.push({mode,polarity,width,...report});
    await fs.writeFile(path.join(base,'layout-results.json'),JSON.stringify(results,null,2));
    const shot=await command(target,'Page.captureScreenshot',{format:'png'});await fs.writeFile(path.join(base,`${mode}-${polarity}-${width}.png`),Buffer.from(shot.data,'base64'));
-   assert.ok(!report.missing,`${mode} header recognized`);assert.deepEqual(report.overflow,[],`${mode} ${width} clipped controls`);assert.deepEqual(report.overlap,[],`${mode} ${width} overlapping controls`);assert.ok(report.closeTop<=12,'close shares first row');assert.ok(report.height<=84,`${mode} ${width} excessive header height ${report.height}`);
-   assert.equal(report.fileActions,['file','code'].includes(mode)?2:0,'file actions belong only to a file');
+   assert.ok(!report.missing,`${mode} header recognized`);assert.deepEqual(report.overflow,[],`${mode} ${width} clipped controls`);assert.deepEqual(report.overlap,[],`${mode} ${width} overlapping controls`);assert.ok(report.closeTop<=12,'close shares first row');assert.ok(report.height<=94,`${mode} ${width} excessive header height ${report.height}`);
+   assert.equal(report.fileActions,['file','code','image'].includes(mode)?2:0,'file actions belong only to a file');
    if(width===320){
     await evaluate(`document.querySelector('aside').style.setProperty('width','760px','important')`);await wait(100);
     assert.equal(await evaluate(`document.querySelector('[data-fade-viewer-header]').getAttribute('data-fade-header-layout')`),'inline',`${mode} expands back to one row`);
@@ -45,7 +53,7 @@ try{
    await evaluate('disposePanel()');
   }
  }
- console.log(`Passed ${results.length} native-header layouts (4 modes × 3 widths × 2 themes).`);
+ console.log(`Passed ${results.length} native-header layouts (5 modes × 3 widths × 2 themes).`);
 }finally{
  if(target)try{await command(target,'Browser.close')}catch{}
  if(browser.exitCode===null)await Promise.race([new Promise(r=>browser.once('exit',r)),wait(3000)]);
@@ -53,3 +61,4 @@ try{
  const resolved=path.resolve(profile);assert.ok(resolved.startsWith(base+path.sep));const stat=await fs.lstat(resolved);assert.ok(!stat.isSymbolicLink());await fs.rm(resolved,{recursive:true,force:true});
  await retireTestArea(base,browser);
 }
+

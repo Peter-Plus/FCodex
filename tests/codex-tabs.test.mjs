@@ -28,6 +28,8 @@ test('Codex navigation deduplicates tabs, GPT route leaves none selected, close 
 
 test('closing waits for asynchronous native navigation without resurrecting the removed tab',()=>{const f=fixture(true);f.location.pathname='/local/b';f.tick();f.list.children[1].children[1].onclick();assert.equal(f.state.tabs.length,1);f.tick();assert.equal(f.state.tabs.length,1);assert.equal(f.state.jobs.length,1);f.commit();f.tick();assert.equal(f.location.pathname,'/local/a');f.location.pathname='/local/b';f.tick();assert.equal(f.state.tabs.length,2);assert.equal(f.state.jobs.length,0);f.dispose()});
 
+test('window-mode home tabs retain distinct native draft keys through switching and close',()=>{const f=fixture();const a=f.dispose.addHome('fade-home-a'),b=f.dispose.addHome('fade-home-b');f.tick();assert.equal(a.location.pathname,'/');assert.equal(b.location.pathname,'/');f.dispose.activate(a);assert.equal(f.location.state.fadePaneHome,'fade-home-a');f.dispose.close(a);assert.equal(f.location.state.fadePaneHome,'fade-home-b');assert(f.state.tabs.includes(b));f.dispose()});
+
 test('completed badge is acknowledged on entering the chat and returns after the next background completion',()=>{
  const f=fixture();f.location.pathname='/local/b';f.tick();f.rows[0].status.kind='working';f.tick();f.rows[0].status.kind='completed';f.tick();
  const icon=()=>f.list.children[0].children[0].children[1];assert(icon());

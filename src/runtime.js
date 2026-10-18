@@ -80,7 +80,10 @@
  chatPicker=installChatPicker(adapter);
  const orbUsage=installOrbUsage(disposeGptTabs);
  const composerAutohide=installComposerAutohide();
+ const disposePaperSurface=installPaperSurface(document);
+ const backgroundSettings=installBackgroundSettings({doc:document,shadow,announce});
  const disposeConversationTitle=installConversationTitle();
+ const windowMode=installFadeWindowMode();
  const disposeFadeSettings=installFadeSettings();
  function actionFailed(){announce('未找到对应入口，请点击 fade 打开侧栏')}
  function switchChat(id){if(!adapter.select(id))actionFailed()}
@@ -230,7 +233,7 @@
   if(!startupHomeRequested){
    // Normalize the initial home route too: a visible emblem does not prove
    // that the restored home state is the Codex composer.
-   if(!disposeGptTabs.home())return null;
+   if(!windowMode.enabled&&!disposeGptTabs.home())return null;
    startupHomeRequested=true;
    return null;
   }
@@ -238,8 +241,8 @@
   return disposeHomeOrb.startupTarget();
  }
  on(window,'resize',()=>{updateFanMask();layoutArc();resizeCanvas()});
- window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
-  if(disposed)return;dismissProjectMenu();disposed=true;abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
+ window.__fadeCodex={version:'2.0.0',windowModeReady:()=>disposeGptTabs.ready,prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
+  if(disposed)return;dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
   for(const[n,t]of tokens){if(t.value)root.style.setProperty(n,t.value,t.priority);else root.style.removeProperty(n)}
   for(const[n,v]of originalAttrs){if(v===null)root.removeAttribute(n);else root.setAttribute(n,v)}
   for(const[el,state]of nativeFocus){el.inert=state.inert;if(state.aria===null)el.removeAttribute('aria-hidden');else el.setAttribute('aria-hidden',state.aria)}

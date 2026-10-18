@@ -1,0 +1,36 @@
+/* Shadow-root companion: paint only, retain every existing hit target. */
+:host{
+ --paper:#292c35;--raised:#303541;--edge:#3b404c;
+ --ink:#eceef4;--text:#c4cad6;--muted:#a6afc0;
+ --fade-polish-tab:color-mix(in srgb,var(--purple) 14%,#292c35);
+ --fade-polish-rim:#ffffff12;
+}
+:host([data-theme=light]){
+ --paper:#fcfcff;--raised:#fff;--edge:#dce0ea;
+ --ink:#282d3b;--text:#485267;--muted:#667188;
+ --fade-polish-tab:color-mix(in srgb,var(--purple) 9%,#fff);
+ --fade-polish-rim:#ffffffcc;
+}
+.fade-gpt-tab:has([aria-selected=true]),.fade-codex-tab[aria-selected=true]{
+ background:var(--fade-polish-tab);
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--purple) 24%,transparent),inset 0 2px 0 var(--fade-polish-rim),0 2px 5px #1016280a;
+}
+.fade-directory,.fade-gpt-area .compact-title{border-color:var(--edge);background:color-mix(in srgb,var(--paper) 55%,transparent)}
+.fade-gpt-close{color:var(--muted)}
+.fade-tabs-scroll,.fade-tabs-scroll .fade-gpt-area{border-left-color:var(--edge)}
+.compact-wordmark:hover,.compact-wordmark[aria-expanded=true]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--purple) 22%,transparent)}
+/* Quiet off-state track; checked tracks keep their existing purple. */
+.fade-settings-menu [aria-checked=false] .fade-setting-switch{
+ background:color-mix(in srgb,var(--muted) 32%,var(--paper));
+}
+/* Busy tab bars: keep targets and scrolling geometry, quiet idle chrome. */
+.fade-gpt-tab .fade-gpt-close{opacity:.38}
+.fade-gpt-tab:has([aria-selected=true]) .fade-gpt-close{opacity:.72}
+.fade-gpt-tab:is(:hover,:focus-within) .fade-gpt-close{opacity:1}
+.fade-tabs-scroll{--fade-scroll-thumb:color-mix(in srgb,var(--ink) 14%,transparent);scrollbar-color:var(--fade-scroll-thumb) transparent}
+.fade-tabs-scroll:is(:hover,:focus-within){--fade-scroll-thumb:color-mix(in srgb,var(--ink) 34%,transparent)}
+.fade-tabs-scroll::-webkit-scrollbar-thumb{background:var(--fade-scroll-thumb)}
+@media(hover:none),(pointer:coarse){
+ .fade-gpt-tab .fade-gpt-close{opacity:1}
+ .fade-tabs-scroll{--fade-scroll-thumb:color-mix(in srgb,var(--ink) 34%,transparent)}
+}

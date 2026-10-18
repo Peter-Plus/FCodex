@@ -1,0 +1,39 @@
+.fade-background-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0005;pointer-events:auto;-webkit-app-region:no-drag;z-index:12}
+.fade-background-overlay[hidden],.background-custom[hidden]{display:none}
+.fade-background-dialog{width:680px;max-width:100%;max-height:calc(100dvh - 48px);overflow:auto;padding:24px;background:var(--paper);color:var(--ink);border:1px solid var(--edge);border-radius:16px;box-shadow:var(--shadow);font:13px/1.6 "Segoe UI",sans-serif;box-sizing:border-box}
+.fade-background-dialog header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}
+.fade-background-dialog h2{margin:0;font-size:18px;font-weight:550}.fade-background-dialog h3{margin:0 0 12px;font-size:13px;font-weight:550}
+.fade-background-dialog p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.fade-background-dialog button,.fade-background-dialog select,.fade-background-dialog input{font:inherit;box-sizing:border-box}
+.fade-background-dialog button{cursor:pointer;color:inherit}.fade-background-dialog button:disabled{cursor:default;opacity:.5}
+.fade-background-dialog :is(button,input,select):focus-visible{outline:2px solid var(--purple);outline-offset:3px}
+.background-close{width:30px;height:30px;flex:none;border-radius:7px;background:var(--line);font-size:20px!important}
+.background-themes{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.background-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.background-choices button{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-width:0;padding:4px 4px 7px;border:1px solid var(--edge);border-radius:9px;background:transparent;text-align:center;font-size:12px}
+.background-choices button[aria-pressed=true]{border-color:var(--purple);box-shadow:0 0 0 1px var(--purple)}
+.background-swatch{display:flex;flex:none;align-items:center;justify-content:center;width:100%;height:68px;border-radius:5px;margin-bottom:5px;background-color:#242424;background-size:cover;background-position:center;font-size:22px;color:#aaa}
+.background-theme[data-mode=light] .background-swatch{background-color:#f5f5f4;color:#777}
+.background-theme[data-mode=light] .solid{background:#f2f3f7}.background-theme[data-mode=dark] .solid{background:#1e2027}
+.background-theme .paper{background-image:linear-gradient(#242424f0,#242424f0),var(--fc-paper-texture);background-size:auto,160px}
+.background-theme[data-mode=light] .paper{background-image:linear-gradient(#f5f5f499,#f5f5f499),var(--fc-paper-texture)}
+.background-custom{margin-top:16px}.background-file-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.background-filename{flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
+.background-file-row button{padding:5px 10px;border:1px solid var(--edge);border-radius:6px;background:var(--line);font-size:12px}
+.background-strength{display:block;margin-top:16px;font-size:12px}.background-strength output{float:right;color:var(--muted)}
+.background-strength input{display:block;width:100%;accent-color:var(--purple);margin:9px 0}
+.background-fit{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:12px}
+.background-fit select{background:var(--paper);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:4px 8px}
+.fade-background-dialog .background-status{margin-top:22px;color:var(--ink);min-height:20px}
+.fade-background-dialog .background-note{font-size:11px}
+@media(max-width:560px){.fade-background-overlay{padding:12px}.fade-background-dialog{padding:18px;max-height:calc(100dvh - 24px)}.background-themes{grid-template-columns:1fr;gap:22px}}
+
+.background-themes>section{min-width:0}
+.background-presets{display:grid;gap:6px;margin-top:12px}
+.background-preset-row,.background-save{display:flex;gap:8px;min-width:0}
+.background-preset-row button,.background-save button{padding:5px 8px;border:1px solid var(--edge);border-radius:6px;background:var(--line);font-size:12px;flex:none}
+.background-preset-row button:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;display:block}
+.background-preset-row button[aria-pressed=true]{border-color:var(--purple)}
+.background-save{margin-top:16px}
+.background-save input{width:0;min-width:0;flex:1;background:var(--paper);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:5px 8px}
+.background-transforms{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:8px}.background-transforms .background-strength{margin-top:8px}.background-transforms .background-strength:last-child{grid-column:1/-1}

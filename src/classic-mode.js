@@ -1,3 +1,4 @@
+function isFadeClassicShortcut(event){return event.ctrlKey&&!event.altKey&&event.shiftKey&&!event.metaKey&&!event.repeat&&!event.isComposing&&!event.getModifierState?.('AltGraph')&&(event.code==='KeyL'||event.key?.toLowerCase()==='l')}
 // The isolated runtime has no OS caption. Keep only its window controls when
 // restoring the native app, without retaining the Fade layout or observers.
 function installClassicWindowChrome(){

@@ -9,7 +9,7 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 export function productionHTML(source,{token,theme,preset,bridge}){
  const settings=JSON.stringify({base:`/${token}`,theme,preset}).replaceAll('<','\\u003c');
  return source.replace('<head>',`<head><script>window.__fadeStartupSettings=${settings};</script><script>${bridge}</script>`)
-  .replace('<title>Fade · 启动动画预览</title>',`<title>Fade Startup ${token.slice(0,12)}</title>`)
+  .replace('<title>FCodex · 启动动画预览</title>',`<title>Fade Startup ${token.slice(0,12)}</title>`)
   .replace('src="../Arts/MilkDragon1.mp4"',`src="/${token}/video"`)
   .replace('</head>',`<style>.tuning,.tools,.bottom,.workspace,.caption{display:none!important}body[data-phase=live] .tools{display:none!important}#realWorkspace{position:fixed;inset:0;width:100%;height:100%;z-index:1;opacity:0;object-fit:fill;pointer-events:none}body[data-phase=leaving] #realWorkspace,body[data-phase=settling] #realWorkspace,body[data-phase=live] #realWorkspace{opacity:1}body[data-phase=settling] .signature,body[data-phase=live] .signature{display:none!important}#startupError{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:30;max-width:80vw;background:#242424;color:white;border:1px solid #ffffff30;border-radius:12px;padding:15px 20px;font:14px/1.6 "Segoe UI",sans-serif}</style></head>`);
 }

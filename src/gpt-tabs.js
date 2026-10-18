@@ -252,6 +252,7 @@ function installGptTabs(doc,list,add,report,options={}){
  const dispose=()=>{disposed=true;reorder.destroy();if(!releaseAfterDispose)cacheRelease?.destroy();observer.disconnect();clearTimeout(pending);nativeSubscriptions.forEach(fn=>fn());add.removeEventListener('click',create);list.replaceChildren();listeners.clear()};
  Object.assign(dispose,{renameCurrent(){const tab=state.tabs.find(t=>t.id===state.active);return tab?contextMenu(resolved(tab),0,0,true):false},contextMenu,chatAction,accountUsage,refreshAccountUsage,closeAllForClassic,openHistory,history,loadHistory,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn)},home(){if(!ready)return false;state.active=null;go({pathname:'/',search:'',state:{sidebarProductMode:'codex'}});return true}});
  // Object.assign evaluates getters immediately: keep readiness live across async init.
+ Object.assign(dispose,{activate,close,newChat,tabs:()=>state.tabs,canTransfer(tab){if(!ready||!module.VZn||!module.mZn||!module.VQn)return false;const id=resolved(tab);return ['idle','error'].includes(scope.get(module.VZn,id))&&![3,5,6,7].includes(scope.get(module.mZn,id))&&!scope.get(module.VQn,id)}});
  Object.defineProperty(dispose,'ready',{get:()=>ready&&!disposed});
  return dispose;
 }

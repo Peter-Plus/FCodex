@@ -1,0 +1,68 @@
+/* Paint-only layer. No geometry, typography, visibility or interaction changes.
+   Remove this build input to restore the previous surfaces. */
+html[data-fade-codex][data-fade-shell=orb]{
+ --fc-chat:#1e2027;--fc-document:#23262e;--fc-sidebar:#191b21;
+ --fc-panel:#292c35;--fc-bubble:#272a33;--fc-header:#191b21;
+ --fc-fg:#eceef4;--fc-muted:#b0b5c2;--fc-soft:#949baa;
+ --fc-line:#3b404c;--fc-control-border:#454c5b;--fc-divider:#343945;
+ --fc-polish-edge:#ffffff0d;--fc-polish-shadow:#080b1538;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity=light]{
+ --fc-chat:#f2f3f7;--fc-document:#e9ecf2;--fc-sidebar:#e8ebf1;
+ --fc-panel:#ffffff;--fc-bubble:#fcfcff;--fc-header:#e9ecf2;
+ --fc-fg:#282d3b;--fc-muted:#626b7d;--fc-soft:#737d90;
+ --fc-line:#dce0ea;--fc-control-border:#c9d0df;--fc-divider:#d8deea;
+ --fc-polish-edge:#ffffffcc;--fc-polish-shadow:#303c6512;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-fade-composer][data-composer-surface-variant]{
+ --composer-layout-surface-shadow:inset 0 0 0 1px var(--fc-line),inset 0 2px 0 var(--fc-polish-edge),0 10px 30px var(--fc-polish-shadow)!important;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-fade-composer][data-composer-surface-variant]:focus-within{
+ --composer-layout-surface-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fc-accent) 55%,var(--fc-line)),0 0 0 3px color-mix(in srgb,var(--fc-accent) 7%,transparent),0 10px 30px var(--fc-polish-shadow)!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-user-message-bubble]{
+ border-color:color-mix(in srgb,var(--fc-accent) 13%,var(--fc-line))!important;
+ box-shadow:inset 0 1px 0 var(--fc-polish-edge),0 3px 12px var(--fc-polish-shadow)!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-fade-control=send]:not(:disabled){
+ box-shadow:inset 0 1px 0 #ffffff30,0 3px 9px color-mix(in srgb,var(--fc-accent) 18%,transparent)!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-markdown-text-style] [data-code-block]{
+ box-shadow:inset 0 1px 0 var(--fc-polish-edge)!important;
+}
+/* Home project/host rail retains native sizing, clipping and dropdowns. */
+html[data-fade-codex][data-fade-shell=orb] [data-composer-utility-rail][data-composer-rail-placement=above]{
+ background:color-mix(in srgb,var(--fc-panel) 65%,var(--fc-chat))!important;
+ box-shadow:inset 0 1px 0 var(--fc-polish-edge),inset 1px 0 0 var(--fc-line),inset -1px 0 0 var(--fc-line)!important;
+}
+html[data-fade-codex][data-fade-shell=orb] [data-composer-utility-rail][data-composer-rail-placement=above] button:not(:disabled):not([aria-disabled=true]):is(:hover,[data-state=open]){
+ background:color-mix(in srgb,var(--fc-accent) 9%,transparent)!important;
+}
+/* Inline snippets remain wrapping text, with a quieter surface than code cards. */
+html[data-fade-codex][data-fade-shell=orb] code:not(pre code):not([data-code-block] code){
+ background:color-mix(in srgb,var(--fc-accent) 7%,var(--fc-chat))!important;
+ color:var(--fc-fg)!important;
+ border-radius:4px!important;
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fc-accent) 16%,transparent)!important;
+}
+/* Rail-local tokens avoid recoloring native menus and other toolbars. */
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-app-navigation-rail]{
+ --fc-icon:var(--fc-muted);
+ --fc-hover:color-mix(in srgb,var(--fc-accent) 7%,var(--fc-chat));
+ --fc-active:color-mix(in srgb,var(--fc-accent) 12%,var(--fc-chat));
+ --fc-on-active:var(--fc-accent);
+ background:color-mix(in srgb,var(--fc-sidebar) 45%,var(--fc-chat))!important;
+ box-shadow:inset -1px 0 0 var(--fc-line)!important;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-app-navigation-rail] button:is([data-selected],[aria-current=page]){
+ --fc-active:color-mix(in srgb,var(--fc-accent) 12%,var(--fc-chat));
+ --fc-on-active:var(--fc-accent);
+ background-color:var(--fc-active)!important;color:var(--fc-on-active)!important;
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fc-accent) 22%,transparent),inset 0 2px 0 var(--fc-polish-edge)!important;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-app-navigation-rail] button:is([data-selected],[aria-current=page])::before{
+ background:color-mix(in srgb,var(--fc-accent) 12%,var(--fc-chat))!important;
+}
+html[data-fade-codex][data-fade-shell=orb][data-fade-polarity] [data-app-navigation-rail] button:not([data-selected]):not([aria-current=page]):not(:disabled):not([aria-disabled=true]):hover{
+ background-color:var(--fc-hover)!important;color:var(--fc-fg)!important;
+}

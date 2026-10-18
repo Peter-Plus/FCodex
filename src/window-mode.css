@@ -1,0 +1,21 @@
+:host([data-window-mode]) #headerTabsScroll{display:none!important}
+.fade-window-add{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--ink);font-size:22px;pointer-events:auto;-webkit-app-region:no-drag}
+.fade-window-add:hover{background:var(--line)}
+.fade-window-row{position:absolute;top:43px;left:0;right:0;height:42px;display:flex;background:var(--bg,#181818);border-bottom:1px solid var(--edge);pointer-events:auto}
+.fade-window-row[hidden],.fade-window-add[hidden],.fade-window-menu[hidden]{display:none}
+.fade-window-pane{display:flex;align-items:center;gap:5px;min-width:0;padding:0 8px}
+.fade-window-pane[data-focused]{box-shadow:inset 0 -2px var(--purple)}
+.fade-window-pane button{flex:none;border:0;background:transparent;color:var(--ink);border-radius:6px;cursor:pointer;padding:4px 6px;white-space:nowrap}
+.fade-window-pane button:hover{background:var(--line)}
+.fade-window-pane button:focus-visible,.fade-window-divider:focus-visible,.fade-window-add:focus-visible{outline:2px solid var(--purple);outline-offset:-2px}
+.fade-window-directory{font-size:12px;font-weight:600}
+.fade-window-tabs{display:flex;gap:4px;flex:1;min-width:0;overflow:auto;scrollbar-width:thin}
+.fade-window-tabs .fade-gpt-tab{flex:0 0 auto;max-width:180px}
+.fade-window-tabs .fade-gpt-select{overflow:hidden;text-overflow:ellipsis;max-width:145px;font-size:12px}
+.fade-window-tabs [aria-selected=true]{background:var(--line);color:var(--purple)}
+.fade-window-divider{flex:0 0 5px;position:relative;cursor:col-resize;touch-action:none;background:var(--edge)}
+.fade-window-divider::after{content:'';position:absolute;top:42px;left:1px;width:1px;height:calc(100dvh - 85px);background:var(--edge);pointer-events:none}
+.fade-window-divider:hover{background:var(--purple)}
+.fade-window-menu{position:absolute;top:39px;z-index:30;min-width:180px;padding:6px;border:1px solid var(--edge);border-radius:10px;background:var(--bg,#202020);box-shadow:0 8px 30px #0003;pointer-events:auto}
+.fade-window-menu button{display:block;width:100%;padding:9px 12px;text-align:left;color:var(--ink);border:0;border-radius:6px;background:transparent;font:inherit;cursor:pointer}
+.fade-window-menu button:hover{background:var(--line)}

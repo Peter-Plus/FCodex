@@ -1,3 +1,35 @@
+// Native pointer capture can outlive :hover as the pane moves under the cursor.
+// Keep native sizing/capture, but prevent pointer overflow from entering full view.
+function fadeInstallPanelDragState(doc){
+ let active=null;
+ function constrain(event){
+  if(!active?.bounds||event.pointerId!==active.id||!Number.isFinite(event.clientX))return;
+  const {x,size,min,max,scale}=active.bounds;
+  const desired=size+(x-event.clientX)/scale,bounded=Math.max(min,Math.min(max,desired));
+  if(desired!==bounded)Object.defineProperty(event,'clientX',{configurable:true,value:x+(size-bounded)*scale});
+ }
+ function clear(event){
+  if(event?.pointerId!=null&&active&&event.pointerId!==active.id)return;
+  if(event)constrain(event);active?.panel.removeAttribute('data-fade-panel-dragging');active=null;
+ }
+ function start(event){
+  if(event.button!==0)return;
+  const grip=event.target?.closest?.('[class~="group/panel-resizer"][class~="left-0"] [role="separator"][aria-orientation="vertical"]');
+  const panel=grip?.closest('aside[data-app-shell-focus-area="right-panel"]');
+  if(!panel||doc.documentElement?.hasAttribute('data-fade-nav-open'))return;
+    clear();active={panel,id:event.pointerId};
+  const size=Number(grip.getAttribute?.('aria-valuenow')),min=Number(grip.getAttribute?.('aria-valuemin')),max=Number(grip.getAttribute?.('aria-valuemax'));
+  if(size>0&&max>min&&Number.isFinite(event.clientX))active.bounds={x:event.clientX,size,min,max:max-1,scale:(panel.getBoundingClientRect().width||size)/size};
+  panel.setAttribute('data-fade-panel-dragging','');
+ }
+ const target=doc.defaultView||doc;
+ target.addEventListener?.('pointermove',constrain,true);
+ target.addEventListener?.('pointerdown',start,true);
+ target.addEventListener?.('pointerup',clear,true);
+ target.addEventListener?.('pointercancel',clear,true);
+ target.addEventListener?.('blur',clear);
+ return ()=>{clear();target.removeEventListener?.('pointermove',constrain,true);target.removeEventListener?.('pointerdown',start,true);target.removeEventListener?.('pointerup',clear,true);target.removeEventListener?.('pointercancel',clear,true);target.removeEventListener?.('blur',clear)};
+}
 // Adapt the mounted native viewer; never move React-owned nodes or replace editors.
 function fadeFileMetadata(element){
  const key=Object.keys(element).find(k=>k.startsWith('__reactFiber$'));
@@ -44,9 +76,17 @@ function fadePanelCloseControl(panel){
  return [...panel.querySelectorAll('button')].find(b=>!b.closest('.fade-panel-chrome')&&!b.disabled&&/^(?:Close panel|关闭面板|关闭侧面板)$/i.test(b.getAttribute('aria-label')||''))||null;
 }
 function fadeCloseFilePanel(panel){const control=fadePanelCloseControl(panel);if(!control)return false;control.click();return true}
+function fadeScrollHeaderActions(event,row,header){
+ if(event.ctrlKey||header.getAttribute('data-fade-header-layout')!=='stacked'||row.scrollWidth<=row.clientWidth)return;
+ const delta=Math.abs(event.deltaX)>Math.abs(event.deltaY)?event.deltaX:event.deltaY;
+ if(!delta)return;
+ const unit=event.deltaMode===1?16:event.deltaMode===2?row.clientWidth:1;
+ row.scrollLeft+=delta*unit;
+ event.preventDefault();event.stopPropagation();
+}
 function installFilePanel(doc,report){
  const states=new Map(),panels=new Map(),headers=new Map();let stopped=false,platformPromise,frame=0;
- const win=doc.defaultView;
+ const win=doc.defaultView;const disposeDragState=fadeInstallPanelDragState(doc);
  const visible=el=>!el.closest('[hidden],[aria-hidden="true"],[data-app-shell-active-page="false"]')&&(!el.getClientRects||el.getClientRects().length>0);
  const icons={copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>',folder:'<path d="M3 7V5a1 1 0 0 1 1-1h5l2 3h9a1 1 0 0 1 1 1v11H3Z"/><path d="M3 10h18"/>',file:'<path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v5h5"/>'};
  icons.close='<path d="m6 6 12 12M18 6 6 18"/>';
@@ -71,6 +111,7 @@ function installFilePanel(doc,report){
   if(el.getAttribute(name)!==value)el.setAttribute(name,value);
  }
  function restore(state){
+  state.dispose?.();
   state.added?.remove();for(const[el,name,value]of state.attrs){if(value===null)el.removeAttribute(name);else el.setAttribute(name,value)}
  }
  function button(label,icon,fn){const b=doc.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.innerHTML=svg(icon);b.addEventListener('click',e=>{e.stopPropagation();fn(e)});return b}
@@ -100,9 +141,10 @@ function installFilePanel(doc,report){
   if(!header.clientWidth)return;
   // Measure the children, not the stretched second row. Using the row width
   // would make a stacked toolbar stay stacked forever after widening.
-  const actionItems=[...(trailing?.children||[])].filter(e=>e.getBoundingClientRect().width>0);
+  const boxes=el=>[...(el?.children||[])].flatMap(e=>win?.getComputedStyle(e).display==='contents'?boxes(e):[e]);
+  const actionItems=boxes(trailing).filter(e=>e.getBoundingClientRect().width>0);
   const actions=actionItems.reduce((total,e)=>{const s=win?.getComputedStyle(e);return total+Math.max(e.scrollWidth,e.getBoundingClientRect().width)+(parseFloat(s?.marginInlineStart)||0)+(parseFloat(s?.marginInlineEnd)||0)},0)+Math.max(0,actionItems.length-1)*(parseFloat(win?.getComputedStyle(trailing).columnGap)||0);
-  const middle=state.middle?.getBoundingClientRect().width||0;
+  const middle=(state.middle?.getBoundingClientRect().width||0)+(state.auxiliary?.getBoundingClientRect().width||0);
   const close=header.hasAttribute('data-fade-close-host')?40:0;
   // Reserve useful title space; native trailing actions remain an intact group.
   const minimum=state.kind==='review'?150:180;
@@ -115,21 +157,32 @@ function installFilePanel(doc,report){
   let children=[...header.children].filter(e=>!e.classList?.contains('fade-file-heading')&&!e.classList?.contains('fade-panel-chrome'));
   const flow=children.length===1&&children[0].tagName==='DIV'?children[0]:null;
   if(flow)children=[...flow.children];
-  if(children.length<2||children.length>3)return null; // Unknown layouts retain native geometry.
+  if(children.length<2||children.length>4)return null; // Unknown layouts retain native geometry.
   if(state&&(state.leading!==children[0]||state.trailing!==children.at(-1))){resize?.unobserve(header);resize?.unobserve(state.trailing);restore(state);headers.delete(header);state=null}
   if(!state){
    const owner=header.closest('[data-app-shell-tab-panel-controller="right"]');
    const id=owner?.getAttribute('data-tab-id')||'';
-   state={header,leading:children[0],trailing:children.at(-1),middle:children.length===3?children[1]:null,kind:header.hasAttribute('data-browser-sidebar-toolbar')?'browser':id==='diff'?'review':'file',attrs:[]};headers.set(header,state);
+   state={header,leading:children[0],trailing:children.at(-1),middle:children.length>=3?children.at(-2):null,auxiliary:children.length===4?children[1]:null,kind:header.hasAttribute('data-browser-sidebar-toolbar')?'browser':id==='diff'?'review':'file',attrs:[]};headers.set(header,state);
    mark(state,header,'data-fade-viewer-header',state.kind);mark(state,state.leading,'data-fade-header-leading');mark(state,state.trailing,'data-fade-header-trailing');
    if(flow)mark(state,flow,'data-fade-header-flow');
    if(state.middle){mark(state,state.middle,'data-fade-header-middle');mark(state,header,'data-fade-header-three')}
+   if(state.auxiliary){mark(state,state.auxiliary,'data-fade-header-auxiliary');mark(state,header,'data-fade-header-four')}
+   if(state.kind!=='browser'){
+    const row=state.trailing;
+    const wheel=e=>fadeScrollHeaderActions(e,row,header);
+    row.addEventListener('wheel',wheel,{passive:false});
+    state.dispose=()=>row.removeEventListener('wheel',wheel);
+   }
    resize?.observe(header);resize?.observe(state.trailing);
   }
   return state;
  }
  function sync(){
   if(stopped)return;
+  // Full right-pane layout has no resizer and is not yet supported by the card.
+  // Recover persisted state and alternative native entries through its own toggle.
+  const full=[...doc.querySelectorAll('button[data-app-shell-workspace-layout-toggle="right-panel"][aria-pressed="true"]')].find(el=>!el.closest('[hidden],[data-app-shell-active-page="false"]')&&visible(el.parentElement||el));
+  if(full&&!full.disabled){full.click();return}
   const active=new Set(),activePanels=new Set();
   for(const panel of doc.querySelectorAll('aside[data-app-shell-focus-area="right-panel"]')){
    activePanels.add(panel);
@@ -178,5 +231,5 @@ function installFilePanel(doc,report){
   if(!frame)frame=win.requestAnimationFrame(()=>{frame=0;sync()});
  });
  observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','data-review-path','aria-hidden','hidden','data-tab-id','aria-pressed']});sync();
- return ()=>{stopped=true;observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
+ return ()=>{stopped=true;disposeDragState();observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
 }
