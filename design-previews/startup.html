@@ -328,7 +328,9 @@ body[data-phase=settling] #scene,body[data-phase=live] #scene{mix-blend-mode:nor
   const dt=lastFrame?Math.min(.04,(now-lastFrame)/1000):0;lastFrame=now;
   const opening=phase==='opening'?ease((now-openingAt)/2000):1;
   const leaving=phase==='leaving'?clamp(elapsed/(spinDuration*1000)):phase==='settling'||phase==='live'?1:0;
-  const travel=phase==='settling'?ease(elapsed/(quiet?150:600)):phase==='live'?1:0;
+  const travelTime=clamp(elapsed/(quiet?150:600));
+  // Quintic easing has zero velocity and acceleration at both handoff ends.
+  const travel=phase==='settling'?(travelTime**3*(10+travelTime*(-15+6*travelTime))):phase==='live'?1:0;
   if(phase==='leaving'){const fadeProgress=clamp((leaving-activeFadeAt)/(1-activeFadeAt)),opacity=String(1-ease(fadeProgress));film.style.opacity=opacity;$('.signature').style.opacity=opacity;video.volume=Number(opacity)}
   // The native home orb occupies a 94 px button, centered on the welcome emblem.
   // Keep one canvas and one particle set throughout the hand-off.

@@ -24,7 +24,7 @@
 .fade-directory,.fade-gpt-area .compact-title{flex:none;max-width:none;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--ink) 17%,transparent);height:32px;padding:6px 10px;font-size:12px;line-height:18px;white-space:nowrap;color:var(--muted);border-radius:6px}
 .fade-directory:hover,.fade-directory[aria-expanded=true]{background:var(--line);color:var(--ink)}
 .fade-directory:focus-visible,.fade-gpt-select:focus-visible,.fade-gpt-close:focus-visible,.fade-gpt-add:focus-visible{outline:1px solid var(--purple);outline-offset:-1px}
-.fade-codex-select{display:flex;align-items:center;gap:6px}
+.fade-gpt-select{display:flex;align-items:center;gap:6px}
 .fade-tab-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fade-tab-status{display:inline-flex;align-items:center;justify-content:center;flex:0 0 13px;width:13px;height:13px;color:currentColor}
 .fade-tab-status svg{display:block;width:13px;height:13px}

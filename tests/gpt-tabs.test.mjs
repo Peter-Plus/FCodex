@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 const source=fs.readFileSync(new URL('../src/gpt-tabs.js',import.meta.url),'utf8')
  .replace('module=await import(initial.href);const common=await import(shared.href);','module=await Promise.resolve(nativeModule);const common=await Promise.resolve(nativeCommon);');
-async function fixture({supported=true,releaseSupported=false}={}){
+async function fixture({supported=true,releaseSupported=false,activitySupported=false}={}){
  let seq=0,observe;const timers=new Map(),mapping=new Map(),records=[],messages=[];
  class El{constructor(){this.children=[];this.attrs={};this.dataset={};this.listeners={}}append(...x){this.children.push(...x)}replaceChildren(...x){this.children=x}setAttribute(k,v){this.attrs[k]=v}removeAttribute(k){delete this.attrs[k]}getAttribute(k){return this.attrs[k]}addEventListener(k,f){this.listeners[k]=f}removeEventListener(k){delete this.listeners[k]}getBoundingClientRect(){return {width:100}}click(){if(!this.disabled)(this.onclick??this.listeners.click)?.()}}
  const location={pathname:'/local/codex-1',search:'',state:{},key:'initial'},navigator={createHref:x=>x,push(path,state){Object.assign(location,typeof path==='string'?{pathname:path,search:''}:path,{state,key:String(++seq)})}};
@@ -15,13 +15,41 @@ async function fixture({supported=true,releaseSupported=false}={}){
  const native={fadeStudyChat:supported?{}:null,fadeStudyProduct:{},YQn:(_,id)=>mapping.get(id)??id,ZQn:()=> 'local-chatgpt:'+ ++seq,zYt:(_,opts)=>navigator.push('/',opts)};
  const released=[];let busy=false;
  if(releaseSupported){Object.assign(native,{DYn:(_,id)=>released.push(id),VZn:'status',mZn:'async',VQn:'pending'});scope.get=key=>key==='status'?(busy?'streaming':'idle'):null;scope.queryClient.removeQueries=()=>{}}
+ const activity=new Map(),watchers=new Set();
+ if(activitySupported){Object.assign(native,{VZn:'status',mZn:'async',VQn:'pending',SZn:'node',kZn:'mapping'});scope.get=(key,id)=>activity.get(id)?.[key]??(key==='status'?'idle':null);scope.watch=fn=>{watchers.add(fn);fn({get:scope.get});return()=>watchers.delete(fn)}}
  const doc={body:{},querySelector:()=>frame,querySelectorAll:q=>q==='link[href]'?[{href:'app://-/assets/app-initial-a.js'},{href:'app://-/assets/app-shared-b.js'}]:q==='button'?[button]:[],createElement:()=>new El()};
  const win={},context=vm.createContext({window:win,nativeModule:native,nativeCommon:common,crypto:{randomUUID:()=>String(++seq)},setTimeout:f=>{timers.set(++seq,f);return seq},clearTimeout:id=>timers.delete(id),MutationObserver:class{constructor(f){observe=f}observe(){}disconnect(){}}});
- vm.runInContext(fs.readFileSync(new URL('../src/tab-reorder.js',import.meta.url),'utf8')+'\n'+source,context);const list=new El(),add=new El(),api=context.installGptTabs(doc,list,add,m=>messages.push(m),{bindContextMenu:(row,id)=>row.menuId=id});
+ vm.runInContext(fs.readFileSync(new URL('../src/tab-reorder.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../src/codex-tabs.js',import.meta.url),'utf8')+'\n'+source,context);const list=new El(),add=new El(),api=context.installGptTabs(doc,list,add,m=>messages.push(m),{bindContextMenu:(row,id)=>row.menuId=id});
  const initialReady=api.ready;
  await new Promise(r=>setImmediate(r));
- return {initialReady,state:win.__fadeChatSession,location,api,list,add,mapping,records,messages,released,setBusy(v){busy=v},timerCount:()=>timers.size,async tick(){for(const [id,f]of [...timers]){timers.delete(id);await f()}},sync(){observe();for(const [id,f]of [...timers]){timers.delete(id);f()}},close(i){list.children[i+1].children[1].click()},activate(i){list.children[i+1].children[0].click()}};
+ return {initialReady,state:win.__fadeChatSession,location,api,list,add,mapping,records,messages,released,watchers,setActivity(id,value){activity.set(id,value);for(const fn of watchers)fn({get:scope.get})},setBusy(v){busy=v},timerCount:()=>timers.size,async tick(){for(const [id,f]of [...timers]){timers.delete(id);await f()}},sync(){observe();for(const [id,f]of [...timers]){timers.delete(id);f()}},close(i){list.children[i+1].children[1].click()},activate(i){list.children[i+1].children[0].click()}};
 }
+
+test('GPT status follows native activity, survives ID promotion, acknowledges only the entered chat and cleans subscriptions',async()=>{
+ const f=await fixture({activitySupported:true});
+ try{
+  f.add.click();const a=f.state.tabs[0];f.add.click();const b=f.state.tabs[1];
+  const badge=index=>f.list.children[index+1].children[0].children.find(e=>e.attrs.role==='img')?.attrs['aria-label'];
+  assert.equal(badge(0),undefined);assert.equal(f.watchers.size,2);
+  f.setActivity(a.conversationId,{status:'streaming'});await f.tick();assert.equal(badge(0),'工作中');
+  f.mapping.set(a.conversationId,'server-id');
+  const final={node:'answer',mapping:{answer:{message:{id:'answer',author:{role:'assistant'},end_turn:true,status:'finished_successfully'}}}};
+  f.setActivity(b.conversationId,{...final,status:'idle'});await f.tick();assert.equal(badge(1),undefined,'history hydration is not a new completion');
+  f.setActivity('server-id',{...final,status:'streaming'});await f.tick();assert.equal(badge(0),'工作中');
+  f.setActivity('server-id',{...final,status:'idle'});await f.tick();assert.equal(badge(0),'已完成');
+  f.activate(1);f.sync();assert.equal(badge(0),'已完成','being visible in another pane is not read');
+  f.activate(0);f.sync();assert.equal(badge(0),undefined);
+  f.activate(1);f.sync();assert.equal(badge(0),undefined,'completion stays acknowledged');
+  f.setActivity('server-id',{status:'streaming'});await f.tick();
+  f.setActivity('server-id',{status:'error'});await f.tick();assert.equal(badge(0),undefined,'failure is not completion');
+  f.setActivity('server-id',{status:'streaming'});await f.tick();
+  f.setActivity('server-id',{status:'idle'});await f.tick();assert.equal(badge(0),undefined,'stop without final answer is not completion');
+  f.setActivity('server-id',{status:'idle',async:4});await f.tick();assert.equal(badge(0),'已完成','native background unread completion');
+  f.setActivity(b.conversationId,{status:'active-async-turn'});await f.tick();assert.equal(badge(1),'工作中');
+  f.close(0);f.sync();assert.equal(f.watchers.size,1);
+ }finally{f.api()}
+ assert.equal(f.watchers.size,0);
+});
 
 test('classic mode closes all tabs, restores Codex and drains busy chats after UI disposal',async()=>{
  const f=await fixture({releaseSupported:true});f.add.click();f.add.click();const ids=f.state.tabs.map(t=>t.conversationId);f.setBusy(true);

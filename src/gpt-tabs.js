@@ -82,6 +82,7 @@ function installChatCacheRelease(doc,scope,module,state,isOpen,report){
    const busy=job.ids.some(id=>!['idle','error'].includes(scope.get(module.VZn,id))||[3,5,6,7].includes(scope.get(module.mZn,id))||scope.get(module.VQn,id));
    if(busy)continue;
    const loc=fadeNativeRouter(doc)?.location;
+   if(job.ids.some(id=>doc.defaultView?.__fadePreviewBridge?.retainsPath('/c/'+encodeURIComponent(id))))continue;
    if(loc?.state?.fadeDraftKey===job.draftKey||job.ids.some(id=>loc?.pathname==='/c/'+encodeURIComponent(id)))continue;
    const pages=fadeRetainedChatPages(doc,job);
    if(pages.length){if(pages.every(p=>!p.active&&p.expire))pages.forEach(p=>p.expire());continue}
@@ -100,11 +101,38 @@ function installChatCacheRelease(doc,scope,module,state,isOpen,report){
  schedule();
  return {enqueue(tab,id){jobs.push({draftKey:tab.id,ids:[...new Set([tab.conversationId,id].filter(Boolean))],identity:identity()});schedule()},destroy(){disposed=true;globalThis.clearTimeout(timer)}};
 }
+function fadeGptTabActivity(get,module,tab){
+ const id=module.YQn(get,tab.conversationId)||tab.conversationId;
+ const phase=get(module.VZn,id),asyncStatus=get(module.mZn,id),pending=get(module.VQn,id)||get(module.VQn,tab.conversationId);
+ const node=get(module.SZn,id),message=get(module.kZn,id)?.[node]?.message;
+ return {phase,asyncStatus,working:phase!=null&&!['idle','error'].includes(phase)||[3,5,6,7].includes(asyncStatus)||!!pending,
+  completedId:message?.author?.role==='assistant'&&message.end_turn===true&&message.status==='finished_successfully'?(message.id||node):null};
+}
+function updateFadeGptTabActivity(tab,next){
+ const previous=tab.activity;
+ if(next.phase==='error'){tab.status=null}
+ else if(next.working){tab.status='working';tab.completionSeen=false}
+ else if(next.asyncStatus===4&&previous?.asyncStatus!==4||tab.status==='working'&&next.completedId&&next.completedId!==tab.lastCompletedMessage){tab.status='completed';tab.completionSeen=false}
+ else if(tab.status==='working')tab.status=null;
+ if(next.completedId&&(!next.working||!previous))tab.lastCompletedMessage=next.completedId;
+ tab.activity=next;
+}
 function installGptTabs(doc,list,add,report,options={}){
  const state=window.__fadeChatSession??={tabs:[],codex:{pathname:'/',search:'',state:{sidebarProductMode:'codex'}},active:null};
  let scope,module,cacheRelease,disposed=false,pending=0,signature='',lastRender='',ready=false,releaseAfterDispose=false;
  const reorder=installFadeTabReorder(list,state.tabs,tab=>tab.id,render);
- const listeners=new Set(),nativeSubscriptions=[];
+ const listeners=new Set(),nativeSubscriptions=[],activityWatches=new Map();
+ const activitySupported=()=>module&&['VZn','mZn','VQn','SZn','kZn'].every(key=>module[key]!=null);
+ function syncActivity(){
+  for(const [tab,stop]of activityWatches)if(!state.tabs.includes(tab)){stop();activityWatches.delete(tab)}
+  if(!activitySupported())return;
+  for(const tab of state.tabs){
+   if(!tab.conversationId)continue;
+   if(typeof scope.watch==='function'){
+    if(!activityWatches.has(tab))activityWatches.set(tab,scope.watch(({get})=>{updateFadeGptTabActivity(tab,fadeGptTabActivity(get,module,tab));schedule()}));
+   }else updateFadeGptTabActivity(tab,fadeGptTabActivity(scope.get,module,tab));
+  }
+ }
  const router=()=>fadeNativeRouter(doc);
  const location=()=>router()?.location;
  const resolved=t=>t.conversationId&&module?module.YQn(scope.get,t.conversationId):t.conversationId;
@@ -126,12 +154,12 @@ function installGptTabs(doc,list,add,report,options={}){
   try{save();if(!tab){state.active=null;go(state.codex);render();return}
    upgrade(tab);state.active=tab.id;
    if(tab.location)go(tab.location);else module.zYt(scope,{activeProject:null,fadeChat:true,fadeDraftKey:tab.id,initialChatGptConversationId:tab.conversationId,sidebarProductMode:'codex'});
-   render();
+   syncActivity();render();
   }catch(e){report('未能打开聊天：'+e.message)}
  }
- function newChat(){if(!ready)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
+ function newChat(internal=false){if(!ready)return;if(!internal&&options.beforeNew?.()===false)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
  function openHistory(chat){
-  if(!ready)return false;
+  if(!ready)return false;if(options.beforeOpen?.(chat.id)===false)return false;
   let tab=state.tabs.find(t=>resolved(t)===chat.id||t.location?.pathname===pathFor(chat.id));
   if(!tab){tab={id:'fade-chat-'+crypto.randomUUID(),title:chat.title||'ChatGPT',conversationId:chat.id,location:{pathname:pathFor(chat.id),search:'',state:{sidebarProductMode:'codex'}}};state.tabs.push(tab)}
   activate(tab);return true;
@@ -152,11 +180,11 @@ function installGptTabs(doc,list,add,report,options={}){
   releaseAfterDispose=true;render();
  }
  function render(){
-  const key=JSON.stringify([ready,state.active,state.tabs.map(t=>[t.id,t.title,resolved(t),t.location?.pathname])]);if(key===lastRender)return;lastRender=key;
+  const key=JSON.stringify([ready,state.active,state.tabs.map(t=>[t.id,t.title,resolved(t),t.location?.pathname,t.status,t.completionSeen])]);if(key===lastRender)return;lastRender=key;
   list.replaceChildren();const home=doc.createElement('button');home.className='fade-gpt-select fade-codex-tab';home.textContent='Codex';home.setAttribute('role','tab');home.setAttribute('aria-selected',String(state.active===null));home.onclick=()=>activate(null);if(!options.split)list.append(home);
   for(const tab of state.tabs){
    const item=doc.createElement('div');item.className='fade-gpt-tab';
-   const button=doc.createElement('button');button.className='fade-gpt-select';button.textContent=tab.title;button.title=tab.title;button.setAttribute('role','tab');button.setAttribute('aria-selected',String(state.active===tab.id));button.onclick=()=>activate(tab);
+   const button=doc.createElement('button');button.className='fade-gpt-select';const label=doc.createElement('span');label.className='fade-tab-title';label.textContent=tab.title;button.append(label);appendCodexTabStatus(doc,button,tab.status==='completed'&&tab.completionSeen?null:tab.status);button.title=tab.title;button.setAttribute('role','tab');button.setAttribute('aria-selected',String(state.active===tab.id));button.onclick=()=>activate(tab);
    const x=doc.createElement('button');x.className='fade-gpt-close';x.textContent='×';x.setAttribute('aria-label','关闭标签 '+tab.title);x.title='关闭标签';x.onclick=()=>close(tab.id);
    item.append(button,x);reorder.bind(item,tab);const chatId=resolved(tab);if(chatId&&!chatId.startsWith('local-chatgpt:')&&fadeGptPath(tab.location?.pathname))options.bindContextMenu?.(item,chatId);list.append(item);
   }add.disabled=!ready;
@@ -167,9 +195,12 @@ function installGptTabs(doc,list,add,report,options={}){
    const tab=state.tabs.find(t=>t.id===loc.state?.fadeDraftKey||t.location?.pathname===loc.pathname&&fadeGptPath(loc.pathname));
    state.active=tab?.id??null;
   }
+  syncActivity();
+  for(const tab of state.tabs)if(tab.status==='completed'&&(loc.state?.fadeDraftKey===tab.id||fadeGptPath(loc.pathname)&&loc.pathname===pathFor(resolved(tab))))tab.completionSeen=true;
   const cached=scope.queryClient.getQueryCache().getAll();
   const historyTitles=new Map(cached.filter(q=>q.queryKey[0]==='chatgpt-conversations').flatMap(q=>(q.state.data?.pages??[]).flatMap(p=>p.items??[])).map(c=>[c.id,c.title]));
-  for(const tab of state.tabs){upgrade(tab);const id=resolved(tab),entry=cached.find(q=>q.queryKey[0]==='chatgpt-conversation'&&q.queryKey[1]===id)?.state.data;if(entry?.title||historyTitles.get(id))tab.title=entry?.title||historyTitles.get(id)}
+  const conversations=new Map();for(const query of cached)if(query.queryKey[0]==='chatgpt-conversation'&&!conversations.has(query.queryKey[1]))conversations.set(query.queryKey[1],query.state.data);
+  for(const tab of state.tabs){upgrade(tab);const id=resolved(tab),entry=conversations.get(id);if(entry?.title||historyTitles.get(id))tab.title=entry?.title||historyTitles.get(id)}
   render();listeners.forEach(fn=>fn());
  }
  const schedule=()=>{if(!pending&&!disposed)pending=setTimeout(sync,80)};
@@ -249,10 +280,10 @@ function installGptTabs(doc,list,add,report,options={}){
  function accountUsage(){const q=usageQuery();return q&&!q.state.error?q.state.data?.rate_limit:null}
  async function refreshAccountUsage(){const q=usageQuery();if(ready&&q?.options?.queryFn)await q.fetch(undefined,{cancelRefetch:false})}
  const create=()=>newChat();add.addEventListener('click',create);render();init();
- const dispose=()=>{disposed=true;reorder.destroy();if(!releaseAfterDispose)cacheRelease?.destroy();observer.disconnect();clearTimeout(pending);nativeSubscriptions.forEach(fn=>fn());add.removeEventListener('click',create);list.replaceChildren();listeners.clear()};
+ const dispose=()=>{disposed=true;reorder.destroy();if(!releaseAfterDispose)cacheRelease?.destroy();observer.disconnect();clearTimeout(pending);nativeSubscriptions.forEach(fn=>fn());activityWatches.forEach(stop=>stop());activityWatches.clear();add.removeEventListener('click',create);list.replaceChildren();listeners.clear()};
  Object.assign(dispose,{renameCurrent(){const tab=state.tabs.find(t=>t.id===state.active);return tab?contextMenu(resolved(tab),0,0,true):false},contextMenu,chatAction,accountUsage,refreshAccountUsage,closeAllForClassic,openHistory,history,loadHistory,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn)},home(){if(!ready)return false;state.active=null;go({pathname:'/',search:'',state:{sidebarProductMode:'codex'}});return true}});
  // Object.assign evaluates getters immediately: keep readiness live across async init.
- Object.assign(dispose,{activate,close,newChat,tabs:()=>state.tabs,canTransfer(tab){if(!ready||!module.VZn||!module.mZn||!module.VQn)return false;const id=resolved(tab);return ['idle','error'].includes(scope.get(module.VZn,id))&&![3,5,6,7].includes(scope.get(module.mZn,id))&&!scope.get(module.VQn,id)}});
+ Object.assign(dispose,{activate,close,newChat,tabs:()=>state.tabs});
  Object.defineProperty(dispose,'ready',{get:()=>ready&&!disposed});
  return dispose;
 }

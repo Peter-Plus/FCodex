@@ -27,6 +27,8 @@ function installFadeSettings(){
   if(!popup||menu.hidden)return;
   const wrapper=popup.closest('[data-radix-popper-content-wrapper]')||popup;
   if(!positioned.has(wrapper))positioned.set(wrapper,wrapper.getAttribute('style'));
+  // Settings lives in the high-z shadow host; its native submenu is a body portal.
+  wrapper.style.setProperty('z-index','2147483004','important');
   const anchor=menu.getBoundingClientRect(),size=popup.getBoundingClientRect(),gap=10;
   const left=anchor.left-size.width-gap;
   // On narrow windows, stack below instead of covering the settings card.
@@ -35,7 +37,7 @@ function installFadeSettings(){
   wrapper.style.setProperty('position','fixed','important');wrapper.style.setProperty('left','0','important');wrapper.style.setProperty('top','0','important');wrapper.style.setProperty('transform',`translate(${x}px, ${y}px)`,'important');
  }
  function source(){return [...document.querySelectorAll('[data-codex-composer-root] [data-composer-navigation-target=permissions]')].find(el=>!el.closest('[hidden],[inert],[data-app-shell-active-page="false"]')&&el.getClientRects().length)}
- function sync(){const native=source();item.disabled=!native||native.disabled||native.getAttribute('aria-disabled')==='true';value.textContent=native?.textContent.trim()||'当前页面不可用'}
+ function sync(){windowToggle.setAttribute('aria-checked',String(windowMode.enabled));usage.setAttribute('aria-checked',String(orbUsage.enabled));autohide.setAttribute('aria-checked',String(composerAutohide.enabled));const native=source();item.disabled=!native||native.disabled||native.getAttribute('aria-disabled')==='true';value.textContent=native?.textContent.trim()||'当前页面不可用'}
  function close(focus=false){if(popup)popup.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true}));popup=null;activeNative=null;item.setAttribute('aria-expanded','false');menu.hidden=true;button.setAttribute('aria-expanded','false');if(focus)button.focus()}
  on(button,'click',()=>{if(!menu.hidden){close();return}closeNav(false);chatPicker?.close();sync();menu.hidden=false;button.setAttribute('aria-expanded','true');item.focus()});
  on(item,'click',()=>{

@@ -17,6 +17,11 @@ $package = Get-AppxPackage -Name OpenAI.Codex | Select-Object -First 1
 if (-not $package) { throw 'Microsoft Store Codex installation not found.' }
 $officialAppDir = Join-Path $package.InstallLocation 'app'
 $appDir = Join-Path $taskRoot '.fade-runtime-isolated\app'
+$runtimeBuildDeferred = $false
+function Build-FadeRuntime {
+ Push-Location $taskRoot
+ try { $buildArgs=@($officialAppDir); if ($DiagnosticHold) { $buildArgs+= '--diagnostic-hold' }; & $node (Join-Path $taskRoot 'startup\build-runtime.mjs') @buildArgs; if ($LASTEXITCODE -ne 0) { throw 'Installed Codex version is not supported by the Fade runtime. Official files were not modified.' } } finally { Pop-Location }
+}
 if ($DiagnosticHold) {
  if ($Restore -or $NoStartup -or $Preview) { throw 'DiagnosticHold requires a fresh animated startup.' }
  $appDir = Join-Path $taskRoot '.work\active\diagnostic-runtime\app'
@@ -28,10 +33,7 @@ if ($Restore) {
  try { $restoreSession=Get-Content -LiteralPath (Join-Path $taskRoot '.fade-session.json') -Raw | ConvertFrom-Json; if ($restoreSession.appDir) { $appDir=$restoreSession.appDir } } catch {}
 } else {
 $activeRuntime = Get-Process -Name ChatGPT,Codex -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($appDir.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) }
-if ($activeRuntime) { Write-Host 'Using the running runtime; packaged updates apply after a full exit and restart.' } else {
-Push-Location $taskRoot
-try { $buildArgs=@($officialAppDir); if ($DiagnosticHold) { $buildArgs+= '--diagnostic-hold' }; & $node (Join-Path $taskRoot 'startup\build-runtime.mjs') @buildArgs; if ($LASTEXITCODE -ne 0) { throw 'Installed Codex version is not supported by the Fade runtime. Official files were not modified.' } } finally { Pop-Location }
-}
+if ($activeRuntime) { $runtimeBuildDeferred = $true; Write-Host 'Using the running runtime; packaged updates apply after a full exit and restart.' } else { Build-FadeRuntime }
 }
 $exe = Join-Path $appDir 'ChatGPT.exe'
 if (-not (Test-Path -LiteralPath $exe)) { $exe = Join-Path $appDir 'Codex.exe' }
@@ -49,6 +51,9 @@ if (-not $endpoint.Running -and -not $Restore) {
  $existing = Get-Process -Name ChatGPT,Codex -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase) }
  $officialRunning = Get-Process -Name ChatGPT,Codex -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($officialAppDir,[StringComparison]::OrdinalIgnoreCase) }
  if ($existing -or $officialRunning) { throw 'Codex is already open. Save work and fully quit Codex, then launch Fade Codex.cmd. No processes were stopped.' }
+ # A previous process may have exited after the initial build check. A fresh
+ # launch must apply the deferred build once it is safe to replace runtime files.
+ if ($runtimeBuildDeferred) { Build-FadeRuntime; $runtimeBuildDeferred = $false }
  # One native window: animation is injected into its renderer while it loads.
  $startupFullscreen = $false
  $preferencesPath = Join-Path $taskRoot '.fade-preferences.json'

@@ -89,8 +89,9 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
    const selected=list.querySelector?.('[aria-selected="true"]'),viewport=options.viewport;
    if(selected&&viewport){const a=selected.getBoundingClientRect(),b=viewport.getBoundingClientRect();if(a.left<b.left)viewport.scrollLeft-=b.left-a.left+8;else if(a.right>b.right)viewport.scrollLeft+=a.right-b.right+8}
   }
-  const pages=fadeCodexPages(doc);
+  const pages=state.jobs.length?fadeCodexPages(doc):[];
   for(const job of [...state.jobs]){const matching=pages.filter(p=>p.location?.pathname===job.path);const chat=rows.find(c=>c.id===job.id);
+   if(window.__fadePreviewBridge?.retainsPath(job.path))continue;
    if(fadeCodexReleaseReady(job,Date.now(),loc.pathname,state.tabs,chat,matching)){try{matching.forEach(p=>p.expire());state.jobs.splice(state.jobs.indexOf(job),1)}catch{/* Unsupported native lifecycle: leave to native expiry. */}}
    else if(Date.now()-job.after>600000)state.jobs.splice(state.jobs.indexOf(job),1);
   }
@@ -102,7 +103,7 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  window.addEventListener?.('message',nativeNavigation);
  const interval=globalThis.setInterval(sync,1000);add.addEventListener('click',newChat);sync();
  const dispose=()=>{dead=true;reorder.destroy();window.removeEventListener?.('message',nativeNavigation);observer.disconnect();clearTimeout(timer);globalThis.clearInterval(interval);add.removeEventListener('click',newChat);list.replaceChildren()};
- Object.assign(dispose,{activate,close,sync,tabs:()=>state.tabs,addHome(key){const tab={path:key,title:'新聊天',location:{pathname:'/',search:'',state:{sidebarProductMode:'codex',fadePaneHome:key}}};state.tabs.push(tab);activate(tab);return tab}});return dispose;
+ Object.assign(dispose,{activate,close,sync,tabs:()=>state.tabs,addHome(key,homeState={}){const tab={path:key,title:'新聊天',location:{pathname:'/',search:'',state:{...homeState,sidebarProductMode:'codex',fadePaneHome:key}}};state.tabs.push(tab);activate(tab);return tab}});return dispose;
 }
 
 

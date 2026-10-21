@@ -34,5 +34,5 @@ function installComposerAutohide(){
  on(window,'blur',()=>{mouse=null;schedule()});on(window,'resize',schedule);
  const observer=new MutationObserver(schedule);observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-expanded','data-state','data-app-shell-active-page','hidden']});
  refresh();
- return {get enabled(){return enabled},set(value){enabled=!!value;try{localStorage.setItem(key,String(enabled))}catch{}refresh()},destroy(){dead=true;observer.disconnect();clearTimeout(timer);if(frame)cancelAnimationFrame(frame);clear();root.removeAttribute('data-fade-composer-autohide')}};
+ return {get enabled(){return enabled},set(value,persist=true){enabled=!!value;if(persist)try{localStorage.setItem(key,String(enabled))}catch{}refresh()},destroy(){dead=true;observer.disconnect();clearTimeout(timer);if(frame)cancelAnimationFrame(frame);clear();root.removeAttribute('data-fade-composer-autohide')}};
 }

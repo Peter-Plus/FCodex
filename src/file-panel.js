@@ -142,8 +142,8 @@ function installFilePanel(doc,report){
   // Measure the children, not the stretched second row. Using the row width
   // would make a stacked toolbar stay stacked forever after widening.
   const boxes=el=>[...(el?.children||[])].flatMap(e=>win?.getComputedStyle(e).display==='contents'?boxes(e):[e]);
-  const actionItems=boxes(trailing).filter(e=>e.getBoundingClientRect().width>0);
-  const actions=actionItems.reduce((total,e)=>{const s=win?.getComputedStyle(e);return total+Math.max(e.scrollWidth,e.getBoundingClientRect().width)+(parseFloat(s?.marginInlineStart)||0)+(parseFloat(s?.marginInlineEnd)||0)},0)+Math.max(0,actionItems.length-1)*(parseFloat(win?.getComputedStyle(trailing).columnGap)||0);
+  const actionItems=boxes(trailing).map(e=>({element:e,width:e.getBoundingClientRect().width})).filter(item=>item.width>0);
+  const actions=actionItems.reduce((total,{element:e,width})=>{const s=win?.getComputedStyle(e);return total+Math.max(e.scrollWidth,width)+(parseFloat(s?.marginInlineStart)||0)+(parseFloat(s?.marginInlineEnd)||0)},0)+Math.max(0,actionItems.length-1)*(parseFloat(win?.getComputedStyle(trailing).columnGap)||0);
   const middle=(state.middle?.getBoundingClientRect().width||0)+(state.auxiliary?.getBoundingClientRect().width||0);
   const close=header.hasAttribute('data-fade-close-host')?40:0;
   // Reserve useful title space; native trailing actions remain an intact group.
@@ -151,7 +151,7 @@ function installFilePanel(doc,report){
   const needed=state.kind==='browser'?160+(leading.scrollWidth||90)+actions+close+32:minimum+actions+middle+close+32;
   mark(state,header,'data-fade-header-layout',header.clientWidth<needed?'stacked':'inline');
  }
- const resize=typeof ResizeObserver==='function'?new ResizeObserver(()=>{for(const state of headers.values())layoutHeader(state)}):null;
+ const resize=typeof ResizeObserver==='function'?new ResizeObserver(entries=>{const targets=new Set(entries.map(entry=>entry.target));for(const state of headers.values())if(targets.has(state.header)||targets.has(state.trailing))layoutHeader(state)}):null;
  function adaptHeader(header){
   let state=headers.get(header);
   let children=[...header.children].filter(e=>!e.classList?.contains('fade-file-heading')&&!e.classList?.contains('fade-panel-chrome'));
@@ -181,12 +181,18 @@ function installFilePanel(doc,report){
   if(stopped)return;
   // Full right-pane layout has no resizer and is not yet supported by the card.
   // Recover persisted state and alternative native entries through its own toggle.
-  const full=[...doc.querySelectorAll('button[data-app-shell-workspace-layout-toggle="right-panel"][aria-pressed="true"]')].find(el=>!el.closest('[hidden],[data-app-shell-active-page="false"]')&&visible(el.parentElement||el));
+  const windowMode=doc.documentElement?.hasAttribute('data-fade-window-mode');
+  const full=!windowMode&&[...doc.querySelectorAll('button[data-app-shell-workspace-layout-toggle="right-panel"][aria-pressed="true"]')].find(el=>!el.closest('[hidden],[data-app-shell-active-page="false"]')&&visible(el.parentElement||el));
   if(full&&!full.disabled){full.click();return}
   const active=new Set(),activePanels=new Set();
-  for(const panel of doc.querySelectorAll('aside[data-app-shell-focus-area="right-panel"]')){
+  for(const panel of doc.querySelectorAll('aside[data-app-shell-focus-area="right-panel"],aside[data-fade-unified-preview]')){
+   const unified=panel.hasAttribute('data-fade-unified-preview');
+   // Window-mode source panels are invisible. Adapt only the portaled viewer,
+   // whose close/tab controls already live in the unified preview's tab row.
+   if(windowMode&&!unified)continue;
    activePanels.add(panel);
    let shell=panels.get(panel);
+   if(!shell&&unified){shell={attrs:[]};mark(shell,panel,'data-fade-file-panel');panels.set(panel,shell)}
    if(!shell){
     const chrome=doc.createElement('div');chrome.className='fade-panel-chrome';
     const close=button('关闭预览面板','close',()=>{if(!fadeCloseFilePanel(panel))report('当前布局没有可用的原生关闭入口')});
@@ -194,22 +200,24 @@ function installFilePanel(doc,report){
     shell={added:chrome,attrs:[],close,title,host:null};mark(shell,panel,'data-fade-file-panel');panels.set(panel,shell);
    }
    // React can replace the pane's children without replacing the aside itself.
-   for(const child of panel.children){
+   if(!unified)for(const child of panel.children){
     if(child===shell.added)continue;
     const position=doc.defaultView?.getComputedStyle(child).position;
     if(position==='absolute')mark(shell,child,'data-fade-panel-absolute');
    }
-   shell.close.disabled=!fadePanelCloseControl(panel);
+   if(!unified)shell.close.disabled=!fadePanelCloseControl(panel);
    const viewers=[...panel.querySelectorAll('[data-testid="viewer-header"],[data-browser-sidebar-toolbar]')].filter(visible);
    for(const header of viewers)adaptHeader(header);
    // Use the native tab strip when present; otherwise share the first header.
    // Only our own close node moves. React-owned controls are never reparented.
+   if(!unified){
    const tabRow=[...panel.querySelectorAll('[data-app-shell-tab-row]')].find(visible);
    const host=tabRow||viewers.filter(h=>headers.has(h)).sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top||b.getBoundingClientRect().right-a.getBoundingClientRect().right)[0]||null;
    if(shell.host!==host){if(shell.host)shell.host.removeAttribute('data-fade-close-host');shell.host=host}
    mark(shell,panel,'data-fade-panel-header',host?'integrated':'fallback');
    if(host){mark(shell,host,'data-fade-close-host');if(shell.added.parentElement!==host)host.append(shell.added)}
    else if(shell.added.parentElement!==panel)panel.prepend(shell.added);
+   }
    for(const header of [...viewers,...panel.querySelectorAll('[class~="group/diff-header"]')]){
     if(!visible(header))continue;
     const meta=fadePanelFileMetadata(panel,header);if(!meta)continue;
@@ -222,7 +230,7 @@ function installFilePanel(doc,report){
    }
   }
   for(const[h,state]of states)if(!active.has(h)){restore(state);states.delete(h)}
-  for(const[h,state]of headers){if(!h.isConnected||!visible(h)){resize?.unobserve(h);resize?.unobserve(state.trailing);restore(state);headers.delete(h)}else layoutHeader(state)}
+  for(const[h,state]of headers){if(!h.isConnected||!visible(h)||!activePanels.has(h.closest('aside'))){resize?.unobserve(h);resize?.unobserve(state.trailing);restore(state);headers.delete(h)}else layoutHeader(state)}
   for(const[panel,state]of panels)if(!activePanels.has(panel)){restore(state);panels.delete(panel)}
  }
  const observer=new MutationObserver(records=>{
@@ -230,6 +238,7 @@ function installFilePanel(doc,report){
   if(!win?.requestAnimationFrame){sync();return}
   if(!frame)frame=win.requestAnimationFrame(()=>{frame=0;sync()});
  });
- observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','data-review-path','aria-hidden','hidden','data-tab-id','aria-pressed']});sync();
- return ()=>{stopped=true;disposeDragState();observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
+ observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','data-review-path','aria-hidden','hidden','data-tab-id','aria-pressed']});
+ win?.addEventListener?.('fade-window-mode',sync);sync();
+ return ()=>{stopped=true;win?.removeEventListener?.('fade-window-mode',sync);disposeDragState();observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
 }

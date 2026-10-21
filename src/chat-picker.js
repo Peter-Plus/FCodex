@@ -38,6 +38,7 @@ function installChatPicker(adapter){
   try{buildList()}finally{list=liveList}
   // Background updates must leave unchanged hovered/focused rows mounted.
   const key=node=>node.dataset.pickerKey||node.querySelector('[data-picker-key]')?.dataset.pickerKey;
+  // Keys identify each section occurrence, since a chat can also appear in Recents.
   const previous=new Map([...liveList.children].map(node=>[key(node),node]));
   let index=0;
   for(const fresh of [...draft.children]){
@@ -57,8 +58,8 @@ function installChatPicker(adapter){
   else restoreSearch();
   const filtered=filterFadeChats(data,query);list.replaceChildren();
   list.append(row('新聊天','new',()=>{close();createChat()},'new'));
-  function chat(c){const b=row(c.title,'chat',()=>{close();switchChat(c.id)},'chat:'+c.id);bindChatContextMenu(b,c.id);if(c.active)b.setAttribute('aria-current','page');appendFadeChatStatus(b,c);const item=document.createElement('div');item.className='chat-picker-chat';item.append(b);appendFadeChatActions(item,c,adapter);list.append(item)}
-  if(filtered.pinned.length){pinnedHeading();if(pinnedExpanded.codex)filtered.pinned.forEach(chat)}
+  function chat(c,scope=''){const b=row(c.title,'chat',()=>{close();switchChat(c.id)},'chat:'+scope+c.id);bindChatContextMenu(b,c.id);if(c.active)b.setAttribute('aria-current','page');appendFadeChatStatus(b,c);const item=document.createElement('div');item.className='chat-picker-chat';item.append(b);appendFadeChatActions(item,c,adapter);list.append(item)}
+  if(filtered.pinned.length){pinnedHeading();if(pinnedExpanded.codex)filtered.pinned.forEach(c=>chat(c,'pinned:'))}
   if(!query||filtered.groups.length)sectionHeading('项目','projects',projectsExpanded);
   for(const g of projectsExpanded.codex?filtered.groups:[]){
    const b=row(g.title,'project',()=>{if(query)return;adapter.toggle(g.id,!g.expanded);adapter.refresh();render()},'project:'+g.id);
@@ -71,11 +72,11 @@ function installChatPicker(adapter){
    const add=document.createElement('button');add.type='button';add.className='project-new-chat';add.dataset.pickerKey='new:'+g.id;
    add.title='在 '+g.title+' 中新建聊天';add.setAttribute('aria-label',add.title);add.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
    add.onclick=()=>{close();createChat(g.id)};project.append(menu,add);list.append(project);
-   if(query||g.expanded){g.chats.forEach(chat);
+   if(query||g.expanded){g.chats.forEach(c=>chat(c,'project:'+g.id+':'));
     if(g.moreLabel)list.append(row(g.moreLabel,'more',()=>{adapter.more(g.id);adapter.refresh();render()},'more:'+g.id));
    }
   }
-  if(filtered.recent.length){sectionHeading('最近','recent',recentExpanded);if(recentExpanded.codex)filtered.recent.forEach(chat)}
+  if(filtered.recent.length){sectionHeading('最近','recent',recentExpanded);if(recentExpanded.codex)filtered.recent.forEach(c=>chat(c))}
   if(query&&!filtered.pinned.length&&!filtered.groups.length&&!filtered.recent.length){const empty=document.createElement('div');empty.className='chat-picker-empty';empty.textContent='无匹配聊天';list.append(empty)}
  }
  async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){announce('聊天记录加载失败：'+e.message)}}

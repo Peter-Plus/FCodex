@@ -7,7 +7,10 @@ import {patchDiagnosticIndex} from './diagnostic-gate.mjs';
 import {isolatedStartupPage} from './isolated-startup-page.mjs';
 import {patchMainBranding,patchBootstrapBranding} from './branding-patch.mjs';
 import {patchQuitGuard} from './quit-patch.mjs';
-import {patchWindowModePages} from './window-mode-patch.mjs';
+import {patchWindowPreview,patchPreviewScope} from './window-preview-patch.mjs';
+import {patchWindowModePages,assertWindowModeAsset} from './window-mode-patch.mjs';
+import {patchWindowComposerFocus} from './window-focus-patch.mjs';
+import {patchPageHomeHooks,patchPageHomeConsumers} from './window-home-patch.mjs';
 const source=process.argv[2];if(!source)throw Error('Pass the official app directory');
 const verifyOnly=process.argv.includes('--verify-only');
 const diagnostic=process.argv.includes('--diagnostic-hold');
@@ -25,7 +28,7 @@ let existing;try{existing=JSON.parse(await fs.readFile(buildPath,'utf8'))}catch{
 const mediaManifest=await fs.readFile('Arts/startup-loop.json','utf8');
 const mediaRevision=hash(Buffer.concat([Buffer.from(mediaManifest),await fs.readFile('Arts/fade-codex-icon.png'),await fs.readFile('startup/branding-patch.mjs')]));
 const diagnosticRevision=diagnostic?hash(await fs.readFile('startup/diagnostic-gate.mjs')):undefined;
-const viewRevision=hash(Buffer.concat(await Promise.all(['startup/window-workspace-main.cjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
+const viewRevision=hash(Buffer.concat(await Promise.all(['startup/window-home-patch.mjs','startup/window-focus-patch.mjs','startup/window-preview-patch.mjs','startup/build-runtime.mjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
 let cacheValid=false;
 if(existing?.oldHash===hash(header)&&existing?.revision===6&&existing?.viewRevision===viewRevision&&existing?.mediaRevision===mediaRevision&&existing?.diagnosticRevision===diagnosticRevision){
  let cached;
@@ -45,20 +48,18 @@ let main=await read('.vite/build/'+mainName);
 main=patchQuitGuard(patchMainBranding(main));
 const needle='z=new D.BrowserWindow(R);';
 if(main.split(needle).length!==2)throw Error('Unsupported window constructor: refusing patch');
-main=main.replace(needle,'z=new D.BrowserWindow(d===`primary`?{...R,frame:!1,titleBarOverlay:!1,fullscreen:process.env.FADE_START_FULLSCREEN===`1`}:R);if(d===`primary`)fadeRegisterWindow(z,options=>this.createPrimaryWindow(options));');
+main=main.replace(needle,'z=new D.BrowserWindow(d===`primary`?{...R,frame:!1,titleBarOverlay:!1,fullscreen:process.env.FADE_START_FULLSCREEN===`1`}:R);if(d===`primary`)fadeRegisterWindow(z);');
 // Restoring maximization after construction overrides the fullscreen geometry on Windows.
 // Keep the saved bounds, but let explicit startup fullscreen take precedence.
 const restoreMaximized='k=C?.isMaximized===!0';
 if(main.split(restoreMaximized).length!==2)throw Error('Unsupported maximization restore: refusing patch');
 main=main.replace(restoreMaximized,'k=C?.isMaximized===!0&&!(d===`primary`&&process.env.FADE_START_FULLSCREEN===`1`)');
-main=(await fs.readFile('startup/quit-policy.cjs','utf8'))+'\n'+(await fs.readFile('startup/custom-window-main.cjs','utf8'))+'\n'+(await fs.readFile('startup/window-workspace-main.cjs','utf8'))+'\n'+(await fs.readFile('startup/isolated-startup-main.cjs','utf8'))+'\n'+main;
+main=(await fs.readFile('startup/quit-policy.cjs','utf8'))+'\n'+(await fs.readFile('startup/custom-window-main.cjs','utf8'))+'\n'+(await fs.readFile('startup/isolated-startup-main.cjs','utf8'))+'\n'+main;
 const preload=await read('.vite/build/preload.js')+'\n'+await fs.readFile('startup/custom-window-preload.cjs','utf8');
 const files=new Map([['.vite/build/'+mainName,Buffer.from(main)],['.vite/build/preload.js',Buffer.from(preload)]]);
 const bootstrapName=Object.keys(entry('.vite/build').files).find(n=>/^bootstrap-.*\.js$/.test(n));
 if(!bootstrapName)throw Error('Missing native branding bootstrap');
 files.set('.vite/build/'+bootstrapName,Buffer.from(patchBootstrapBranding(await read('.vite/build/'+bootstrapName))));
-files.set('.vite/build/fade-workspace-ui.js',await fs.readFile('fade.js'));
-files.set('.vite/build/fade-workspace-theme.css',await fs.readFile('theme.css'));
 files.set('.vite/build/fade-codex-icon.png',await fs.readFile('Arts/fade-codex-icon.png'));
 const packageEntry=JSON.parse(await read('package.json')).main;
 if(packageEntry!=='.vite/build/early-bootstrap.js')throw Error('Unvalidated early entry; refusing late protocol registration');
@@ -81,8 +82,9 @@ for(const [name,local,digest]of [['fade-intro.mp4','Arts/MilkDragon1.mp4',mediaI
 }
 function replaceOnce(s,a,b){if(s.split(a).length!==2)throw Error('Patch mismatch: '+a.slice(0,80));return s.replace(a,b)}
 const assets=entry('webview/assets').files;
+const sharedName=Object.keys(assets).find(n=>/^app-shared-.*\.js$/.test(n));
+files.set('webview/assets/'+sharedName,Buffer.from(patchPreviewScope(await read('webview/assets/'+sharedName))));
 const primaryName=Object.keys(assets).find(n=>/^app-primary-.*\.js$/.test(n));
-files.set('webview/assets/'+primaryName,Buffer.from(patchWindowModePages(await read('webview/assets/'+primaryName))));
 const initialName=Object.keys(assets).find(n=>/^app-initial-.*\.js$/.test(n));
 let initial=await read('webview/assets/'+initialName);
 initial=replaceOnce(initial,'function gqt(e,t){t!==`codex`&&oy(e,t),XKt(e,t===`codex`?hKt:$v)}','function gqt(e,t){}');
@@ -94,10 +96,18 @@ initial=replaceOnce(initial,'gKt=cs(U,()=>null)','gKt=cs(U,()=>({detailLevel:`ST
 const start=initial.indexOf('_L=Y(U,');const end=initial.indexOf('})})))()}',start);if(start<0||end<0)throw Error('global atom missing');initial=initial.slice(0,start)+'_L=Y(U,()=>`codex`)'+initial.slice(end+2);
 const preferenceStart=initial.indexOf('function XKt(e,t){'),preferenceEnd=initial.indexOf('function ZKt()',preferenceStart);if(preferenceStart<0||preferenceEnd<0)throw Error('Unsupported product preference action');initial=initial.slice(0,preferenceStart)+'function XKt(e,t){return Promise.resolve()}'+initial.slice(preferenceEnd);
 const ex=initial.lastIndexOf('export{');initial=initial.slice(0,ex)+initial.slice(ex).replace('export{','export{gKt as fadeStudyPreference,fadeStudyProduct as fadeStudyProduct,fadeStudyChat as fadeStudyChat,');
-files.set('webview/assets/'+initialName,Buffer.from(initial));
+const previewAsset=patchWindowPreview(patchWindowComposerFocus(patchPageHomeHooks(initial)));
+if(!previewAsset.includes('window.__fadePreviewHostVersion=3')||!previewAsset.includes('bridge.ownsRenderer(renderer)'))throw Error('Final asset lost single-renderer preview patch');
+files.set('webview/assets/'+initialName,Buffer.from(previewAsset));
 let homeName;for(const n of Object.keys(assets)){if(!n.endsWith('.js')||assets[n].size<1000000||n===initialName)continue;const candidate=await read('webview/assets/'+n);if(candidate.includes('function MQ(e)')&&candidate.includes('RTn as Yy')&&candidate.includes('homeDraftKey')){if(homeName)throw Error('Ambiguous home module');homeName=n}}
 if(!homeName)throw Error('home bundle missing');
-let home=await read('webview/assets/'+homeName);home=replaceOnce(home,'RTn as Yy','fadeStudyProduct as Yy');files.set('webview/assets/'+homeName,Buffer.from(home));
+let home=await read('webview/assets/'+homeName);home=patchPageHomeConsumers(replaceOnce(home,'RTn as Yy','fadeStudyProduct as Yy'));files.set('webview/assets/'+homeName,Buffer.from(home));
+// Home and primary are the same bundle in the supported client. Compose on the
+// already patched bytes; rereading the original here would discard the GPT patch.
+const primaryPath='webview/assets/'+primaryName;
+files.set(primaryPath,Buffer.from(patchWindowModePages(files.get(primaryPath)?.toString()??await read(primaryPath))));
+assertWindowModeAsset(files.get(primaryPath).toString());
+if(!files.get('webview/assets/'+homeName).toString().includes('fadeStudyProduct as Yy'))throw Error('Final asset lost GPT home patch');
 if(verifyOnly){
  const {spawnSync}=await import('node:child_process');
  for(const [name,data]of files){if(!/\.(?:js|cjs)$/.test(name))continue;const checked=spawnSync(process.execPath,['--input-type=module','--check'],{input:data,encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});if(checked.status!==0)throw Error('Patched syntax check failed: '+name+'\n'+checked.stderr)}

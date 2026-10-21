@@ -1,9 +1,36 @@
 /* Style the actual right workspace before its content mounts. Never match toolbar buttons. */
-html[data-fade-codex]{--fc-file-glass:#272a32;--fc-file-edge:#ffffff23;--fc-file-line:#343842;--fc-file-body:#23262e;--fc-file-scroll:#535a68;--fc-file-scroll-hover:#798292}
+html[data-fade-window-mode] aside[data-app-shell-focus-area="right-panel"]{visibility:hidden!important;pointer-events:none!important;position:absolute!important;width:0!important;min-width:0!important;margin:0!important}
+html[data-fade-window-mode] [data-fade-page-key] [class~="@container/app-shell-main-content"]{width:100%!important;max-width:none!important;flex:1 1 auto!important}
+/* Native split previews keep a measured frame width and align it to the right.
+   Fade owns the columns here: stale native widths must not crop the chat/composer. */
+html[data-fade-window-mode] [data-fade-page-key] [class*="_MainContentViewport_"]{min-width:0!important;width:100%!important;flex:1 1 0!important}
+html[data-fade-window-mode] [data-fade-page-key] [class*="_MainContentFrame_"]{width:100%!important;min-width:0!important;max-width:100%!important;align-self:stretch!important}
+html[data-fade-window-mode] [data-fade-unified-preview]{position:fixed;top:85px;height:calc(100dvh - 85px);z-index:3;background:var(--fc-file-body,var(--fc-bg));overflow:hidden;min-width:0}
+[data-fade-unified-preview][hidden],.fade-preview-native-host[hidden]{display:none!important}
+.fade-preview-native-host{height:100%;min-width:0;display:flex;flex-direction:column}
+.fade-preview-native-host>[role=tabpanel]{width:100%;min-height:0;flex:1}
+[data-fade-unified-preview] [data-app-shell-workspace-layout-toggle]{display:none!important}
+html[data-fade-codex]{--fc-file-glass:#2b2b2b;--fc-file-edge:#ffffff23;--fc-file-line:#3a3a3a;--fc-file-body:#242424;--fc-file-scroll:#595959;--fc-file-scroll-hover:#808080}
 html[data-fade-codex][data-fade-polarity=light]{--fc-file-glass:#f7f8fa;--fc-file-edge:#0000001b;--fc-file-line:#e6e8ee;--fc-file-body:#fcfcfd;--fc-file-scroll:#bdc3cf;--fc-file-scroll-hover:#939dab}
+/* The window-mode viewer is a full column, not a floating right-hand card.
+   Share the viewer's chrome and palette without inheriting card margins/radii.
+   Keep syntax highlighting, diff semantics and embedded web content native. */
+html[data-fade-codex] aside[data-fade-unified-preview]{
+ --fc-document:var(--fc-file-body);--color-surface:var(--fc-file-body);
+ --app-shell-panel-background:var(--fc-file-body);--color-border:var(--fc-file-line);
+ color:var(--fc-fg);background:var(--fc-file-body)!important;
+ border-inline-start:1px solid var(--fc-file-line);box-sizing:border-box;
+}
+html[data-fade-codex] aside[data-fade-unified-preview] [data-app-shell-pane-frame]{border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}
+html[data-fade-codex] aside[data-fade-unified-preview] [data-fade-viewer-header]{
+ font-family:"Segoe UI Variable Text","Segoe UI",sans-serif;color:var(--fc-fg);
+}
+html[data-fade-codex] aside[data-fade-unified-preview] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-trailing]{margin-inline-end:0}
+/* The portaled browser viewport follows the square column edge in this mode. */
+html[data-fade-codex][data-fade-window-mode] [data-browser-host-root]>[data-browser-sidebar-webview][data-app-shell-focus-area="right-panel"]{border-radius:0}
 /* Scope document paint to native file/review cards, never page content or the
    application-wide document palette. Diff semantic colors stay native. */
-html[data-fade-codex]{--fc-file-header-divider:#505663}
+html[data-fade-codex]{--fc-file-header-divider:#505050}
 html[data-fade-codex][data-fade-polarity=light]{--fc-file-header-divider:#cbd0da}
 /* Strengthen only the header/content boundary, not inputs or card outlines. */
 html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header],
@@ -43,13 +70,13 @@ html[data-fade-codex] .fade-panel-chrome button:disabled,
 html[data-fade-codex] .fade-file-heading button:disabled{opacity:.3;cursor:not-allowed}
 /* The shared native viewer has two semantic slots, not arbitrary wrapped rows.
    Adapt only that verified structure; keep browser inputs, menus and editors native. */
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header]{display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:center!important;gap:6px 10px!important;min-height:44px!important;height:auto!important;padding:8px 12px!important;background:var(--fc-file-glass)!important;box-shadow:none!important;border-bottom:1px solid var(--fc-file-line)}
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header][data-fade-close-host]{padding-inline-end:48px!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header]{display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:center!important;gap:6px 10px!important;min-height:44px!important;height:auto!important;padding:8px 12px!important;background:var(--fc-file-glass)!important;box-shadow:none!important;border-bottom:1px solid var(--fc-file-line)}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header][data-fade-close-host]{padding-inline-end:48px!important}
 html[data-fade-codex] [data-fade-header-leading]{min-width:0!important;max-width:100%;align-items:center!important;gap:6px!important}
 html[data-fade-codex] [data-fade-header-trailing]{display:flex;align-items:center!important;gap:6px!important;min-width:0;max-width:100%;margin-inline-start:auto}
 html[data-fade-codex] [data-fade-header-flow]{display:contents!important}
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-header-three]{grid-template-columns:minmax(0,1fr) max-content max-content!important}
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important;padding-inline-end:12px!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-header-three]{grid-template-columns:minmax(0,1fr) max-content max-content!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important;padding-inline-end:12px!important}
 html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-leading]{grid-column:1;grid-row:1}
 html[data-fade-codex] [data-fade-header-layout=stacked][data-fade-close-host]:not([data-fade-header-three]) [data-fade-header-leading]{padding-inline-end:36px}
 html[data-fade-codex] [data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:2;grid-row:1}
@@ -74,9 +101,9 @@ html[data-fade-codex] aside[data-fade-file-panel] [data-fade-header-four]{grid-t
 html[data-fade-codex] aside[data-fade-file-panel] [data-fade-header-four][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content max-content!important}
 html[data-fade-codex] [data-fade-header-four][data-fade-header-layout=stacked] [data-fade-header-auxiliary]{grid-column:2;grid-row:1}
 html[data-fade-codex] [data-fade-header-four][data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:3;grid-row:1}
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser]{grid-template-columns:max-content minmax(0,1fr) max-content!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser]{grid-template-columns:max-content minmax(0,1fr) max-content!important}
 html[data-fade-codex] [data-fade-viewer-header=browser] [data-fade-header-middle]{min-width:0!important;width:100%;padding-inline:0!important}
-html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [data-fade-viewer-header=browser][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important}
+html[data-fade-codex] aside[data-fade-file-panel] [data-fade-viewer-header=browser][data-fade-header-layout=stacked]{grid-template-columns:minmax(0,1fr) max-content!important}
 html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-leading]{padding-inline-end:0!important}
 html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-middle]{grid-column:1/-1;grid-row:2;margin-inline-end:0!important}
 html[data-fade-codex] [data-fade-viewer-header=browser][data-fade-header-layout=stacked] [data-fade-header-trailing]{grid-column:2!important;grid-row:1;margin-inline-end:36px;justify-self:end;width:auto!important}

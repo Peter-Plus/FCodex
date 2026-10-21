@@ -74,13 +74,13 @@ html[data-theme=light]{--bg:#f0f0f0;--paper:#fafafa;--raised:#fff;--ink:#242424;
  </div>
  <section class="explorer-demo" id="fileExplorerDemo" aria-label="资源管理器预览" hidden><header><span>资源管理器 · 预览</span><button class="icon" id="fileExplorerClose" aria-label="关闭资源管理器预览"><svg><use href="#close"/></svg></button></header><code>G:\Toy\FCodex\workspace.html</code><p><svg><use href="#file"/></svg>src</p><p class="selected"><svg><use href="#file"/></svg>workspace.html</p></section>
 </aside>
-<div class="navigation" id="navigation"><div class="veil" id="veil" aria-hidden="true"></div><section class="nav-content" id="navContent" inert><h2 id="navTitle" class="sr-only">项目导航</h2><div class="arc-viewport" id="arcViewport" tabindex="0" aria-label="项目和聊天列表，可上下滚动"><svg id="chatGuides" aria-hidden="true"></svg><div class="arc-list" id="arcList"></div></div></section><button class="orb-button" id="orbButton" aria-label="单击展开项目导航，双击新建聊天" aria-expanded="false" aria-controls="navContent"><canvas id="orbCanvas" aria-hidden="true"></canvas></button></div>
+<div class="navigation" id="navigation"><div class="veil" id="veil" aria-hidden="true"></div><section class="nav-content" id="navContent" inert><h2 id="navTitle" class="sr-only">项目导航</h2><div class="arc-viewport" id="arcViewport" tabindex="0" aria-label="项目和聊天列表，可上下滚动"><svg id="chatGuides" aria-hidden="true"></svg><div class="arc-list" id="arcList"></div></div></section><button class="orb-button" id="orbButton" aria-label="单击展开项目导航，右键新建聊天" aria-expanded="false" aria-controls="navContent"><canvas id="orbCanvas" aria-hidden="true"></canvas></button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div><dialog id="infoDialog" aria-labelledby="dialogTitle"><header><h2 id="dialogTitle">事件视界</h2><button class="icon" id="dialogClose" aria-label="关闭说明"><svg><use href="#close"/></svg></button></header><div id="dialogBody"></div></dialog>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)'), stateKey='fade-horizon-expanded-v1';
 const groups=[{id:'A',title:'Fade Codex',chats:[{id:'1',title:'让界面退后一步'},{id:'2',title:'打磨控件的细节'},{id:'3',title:'暗色与亮色的关系'}]},{id:'B',title:'Personal site',chats:[{id:'4',title:'首页布局探索'},{id:'5',title:'作品集的阅读节奏'}]},{id:'C',title:'灵感与笔记',chats:[{id:'7',title:'一个新的想法'},{id:'8',title:'把灵感变成原型'}]}];
-let expanded={A:false,B:false,C:false,recent:false},recent=['1','4','7'], currentProject='A',currentChat='1',newCount=0,navOpen=false,singleTimer=null,toastTimer,lastScroll=0,returnFocus=null;
+let expanded={A:false,B:false,C:false,recent:false},recent=['1','4','7'], currentProject='A',currentChat='1',newCount=0,navOpen=false,toastTimer,lastScroll=0,returnFocus=null;
 try{const saved=JSON.parse(localStorage.getItem(stateKey)||'null');if(saved&&typeof saved==='object')Object.keys(expanded).forEach(k=>expanded[k]=saved[k]===true)}catch{}
 const chatsContent=new Map(), svg=n=>`<svg aria-hidden="true"><use href="#${n}"/></svg>`;
 const initialContent=$('#chatContent').innerHTML;
@@ -91,7 +91,7 @@ function rememberChat(){chatsContent.set(currentChat,{html:$('#chatContent').inn
 function emptyContent(title,subtitle){$('#chatContent').replaceChildren();const block=document.createElement('section');block.className='new-chat-empty';const kicker=document.createElement('div');kicker.className='eyebrow';kicker.textContent=subtitle;const heading=document.createElement('h1');heading.textContent=title;const desc=document.createElement('p');desc.textContent='空间已经准备好。写下一个想法，从这里继续。';block.append(heading);$('#chatContent').append(block)}
 function bindArtifact(){const card=$('#artifactCard');if(card)card.onclick=()=>openFilePreview()}
 function switchChat(id){const group=groups.find(g=>g.chats.some(c=>c.id===id));if(!group)return;rememberChat();currentProject=group.id;currentChat=id;const chat=group.chats.find(c=>c.id===id);$('#location').textContent=group.id+' / '+group.title;$('#threadTitle').textContent=chat.id.startsWith('new')?chat.title:'聊天 '+chat.id+' · '+chat.title;const old=chatsContent.get(id);if(old){$('#chatContent').innerHTML=old.html;$('#prompt').value=old.draft;$('#threadBody').scrollTop=old.scroll||0}else{emptyContent(chat.title,group.title+' / 示例会话');$('#prompt').value='';$('#threadBody').scrollTop=0}recent=[id,...recent.filter(x=>x!==id)].slice(0,8);bindArtifact();closeNav();$('#prompt').focus({preventScroll:true})}
-function createChat(){clearTimeout(singleTimer);singleTimer=null;rememberChat();newCount++;const id='new-'+Date.now()+'-'+newCount;const group=groups.find(g=>g.id===currentProject)||groups[0];group.chats.unshift({id,title:'新聊天 '+newCount});currentChat=id;recent=[id,...recent].slice(0,8);$('#location').textContent=group.id+' / '+group.title;$('#threadTitle').textContent='新聊天 '+newCount;$('#chatDate').textContent='刚刚';emptyContent('一个新的开始。',group.title+' / 新聊天');$('#prompt').value='';$('#threadBody').scrollTop=0;burstTime=performance.now();startSpin();shakeCore();wakeParticles();closeNav();document.body.classList.add('near-orb');setTimeout(()=>{if(!navOpen)document.body.classList.remove('near-orb')},1200);$('#prompt').focus({preventScroll:true});}
+function createChat(){rememberChat();newCount++;const id='new-'+Date.now()+'-'+newCount;const group=groups.find(g=>g.id===currentProject)||groups[0];group.chats.unshift({id,title:'新聊天 '+newCount});currentChat=id;recent=[id,...recent].slice(0,8);$('#location').textContent=group.id+' / '+group.title;$('#threadTitle').textContent='新聊天 '+newCount;$('#chatDate').textContent='刚刚';emptyContent('一个新的开始。',group.title+' / 新聊天');$('#prompt').value='';$('#threadBody').scrollTop=0;burstTime=performance.now();startSpin();shakeCore();wakeParticles();closeNav();document.body.classList.add('near-orb');setTimeout(()=>{if(!navOpen)document.body.classList.remove('near-orb')},1200);$('#prompt').focus({preventScroll:true});}
 function addCardSurface(row){
  row.insertAdjacentHTML('afterbegin','<svg class="card-surface" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path d="M 16 18 L 976 1 Q 999 0 999 15 L 999 85 Q 999 100 976 99 L 16 82 Q 1 81 1 68 L 1 32 Q 1 19 16 18 Z"/></svg>');
  return row;
@@ -151,28 +151,14 @@ function revealCards(rows,delay=180,duration=650){
  revealFrame=requestAnimationFrame(frame);
 }
 $('#arcViewport').addEventListener('scroll',()=>{if(!arcFrame)arcFrame=requestAnimationFrame(()=>{arcFrame=0;layoutArc()})},{passive:true});
-function openNav(spin=true){if(navOpen)return;clearTimeout(singleTimer);navOpen=true;returnFocus=document.activeElement;$('#utilityPanel').hidden=true;$('#utilityToggle').setAttribute('aria-expanded','false');$('#orbButton').getBoundingClientRect();if(spin)startSpin();$('#navigation').classList.add('open');$('#navigation').setAttribute('role','dialog');$('#navigation').setAttribute('aria-modal','true');$('#navigation').setAttribute('aria-labelledby','navTitle');document.body.classList.add('nav-is-open');$('#app').inert=true;$('#navContent').inert=false;$('#orbButton').setAttribute('aria-expanded','true');renderRows();$('#arcViewport').scrollTop=lastScroll;layoutArc();revealCards($$('#arcList .nav-row'));$('#orbButton').focus({preventScroll:true});wakeParticles()}
+function openNav(spin=true){if(navOpen)return;navOpen=true;returnFocus=document.activeElement;$('#utilityPanel').hidden=true;$('#utilityToggle').setAttribute('aria-expanded','false');$('#orbButton').getBoundingClientRect();if(spin)startSpin();$('#navigation').classList.add('open');$('#navigation').setAttribute('role','dialog');$('#navigation').setAttribute('aria-modal','true');$('#navigation').setAttribute('aria-labelledby','navTitle');document.body.classList.add('nav-is-open');$('#app').inert=true;$('#navContent').inert=false;$('#orbButton').setAttribute('aria-expanded','true');renderRows();$('#arcViewport').scrollTop=lastScroll;layoutArc();revealCards($$('#arcList .nav-row'));$('#orbButton').focus({preventScroll:true});wakeParticles()}
 function closeNav(){if(!navOpen)return;cancelReveal();lastScroll=$('#arcViewport').scrollTop;navOpen=false;$('#navigation').classList.remove('open');['role','aria-modal','aria-labelledby'].forEach(a=>$('#navigation').removeAttribute(a));document.body.classList.remove('nav-is-open');$('#app').inert=false;$('#navContent').inert=true;$('#orbButton').setAttribute('aria-expanded','false');if(returnFocus?.isConnected&&!returnFocus.closest('[inert]'))returnFocus.focus({preventScroll:true});else $('#orbButton').focus({preventScroll:true})}
-// Respond immediately; retain the original click position while the orb moves.
-let lastOrbClick=null;
-document.addEventListener('click',e=>{
- if(!lastOrbClick||e.detail===0)return;
- const previous=lastOrbClick;lastOrbClick=null;
- if(performance.now()-previous.time<=500&&Math.hypot(e.clientX-previous.x,e.clientY-previous.y)<=32){
-  e.preventDefault();e.stopImmediatePropagation();createChat();
- }
-},true);
-$('#orbButton').addEventListener('click',e=>{
- if(e.detail!==0)lastOrbClick={time:performance.now(),x:e.clientX,y:e.clientY};
- clearTimeout(singleTimer);
- startSpin();
- singleTimer=setTimeout(()=>{singleTimer=null;navOpen?closeNav():openNav(false)},250);
-});
-$('#orbButton').addEventListener('dblclick',e=>e.preventDefault());
+$('#orbButton').addEventListener('click',()=>{startSpin();if(!navOpen)openNav(false)});
+$('#orbButton').addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();createChat()});
 $('#orbButton').addEventListener('pointerenter',()=>{document.body.classList.add('near-orb');wakeParticles()});
 document.addEventListener('pointermove',e=>{if(navOpen)return;const near=e.clientX<135&&Math.abs(e.clientY-innerHeight/2)<145;document.body.classList.toggle('near-orb',near)},{passive:true});
 $('#veil').onclick=closeNav;
-document.addEventListener('keydown',e=>{if($('#infoDialog').open)return;if(e.key==='Escape'){clearTimeout(singleTimer);if(navOpen)closeNav();else{$('#utilityPanel').hidden=true;$('#utilityToggle').setAttribute('aria-expanded','false')}return}if(navOpen&&e.key==='Tab'){const targets=[$('#orbButton'),...$$('#navContent button,#arcViewport')].filter(el=>!el.disabled&&!el.closest('[inert]'));const i=targets.indexOf(document.activeElement);e.preventDefault();const next=e.shiftKey?(i<=0?targets.length-1:i-1):(i+1)%targets.length;targets[next].focus({preventScroll:true});if(targets[next].closest('#arcList'))targets[next].scrollIntoView({block:'center',behavior:'instant'})}});
+document.addEventListener('keydown',e=>{if($('#infoDialog').open)return;if(e.key==='Escape'){if(navOpen)closeNav();else{$('#utilityPanel').hidden=true;$('#utilityToggle').setAttribute('aria-expanded','false')}return}if(navOpen&&e.key==='Tab'){const targets=[$('#orbButton'),...$$('#navContent button,#arcViewport')].filter(el=>!el.disabled&&!el.closest('[inert]'));const i=targets.indexOf(document.activeElement);e.preventDefault();const next=e.shiftKey?(i<=0?targets.length-1:i-1):(i+1)%targets.length;targets[next].focus({preventScroll:true});if(targets[next].closest('#arcList'))targets[next].scrollIntoView({block:'center',behavior:'instant'})}});
 function updateFanMask(){
  const view=$('#arcViewport'),w=view.clientWidth,h=view.clientHeight;
  if(!w||!h)return;
@@ -255,20 +241,33 @@ function resizeCanvas(){
  if(canvas.width!==size||canvas.height!==size){canvas.width=size;canvas.height=size;ctx.setTransform(dpr,0,0,dpr,0,0)}
  paint(performance.now());wakeParticles();
 }
+let particleExposure=null;
+function particlesExposed(){
+ const button=canvas.parentElement;
+ if(!button)return true;
+ const scope=canvas.getRootNode().host||document.body;
+ return scope.classList.contains('near-orb')||scope.hasAttribute('data-home-orb')||scope.hasAttribute('data-orb-arriving-home')||button.matches(':focus-visible')||button.closest('.navigation')?.classList.contains('open');
+}
 function paint(now,dt=0){
  if(!ctx||startupCovered)return;
+ const target=particlesExposed()?1:0;
+ if(particleExposure===null||reduceMotion.matches)particleExposure=target;
+ else{particleExposure+=(target-particleExposure)*(1-Math.exp(-dt*14));if(Math.abs(target-particleExposure)<.001)particleExposure=target}
  const state=orbState,motion=reduceMotion.matches?{scale:1,boost:0}:envelope(orbClock-state.trigger,state.config,state.baseScale);
  state.currentScale=motion.scale;state.currentBoost=motion.boost;
  state.coreAngle=(state.coreAngle+dt*(reduceMotion.matches?0:.12+motion.boost*.55))%(Math.PI*2);
  const s=canvasSize,cx=s/2,cy=s/2,k=s/260,color=document.documentElement.dataset.theme==='light'?'0,0,0':'255,255,255';
  const age=(now-burstTime)/1000,impact=!reduceMotion.matches&&age>=0&&age<.56?Math.pow(1-age/.56,2):0;
  ctx.clearRect(0,0,s,s);ctx.save();ctx.translate(Math.sin(age*117)*impact*4,Math.cos(age*93)*impact*3);
- ctx.fillStyle=`rgb(${color})`;ctx.beginPath();ctx.arc(cx,cy,state.config.core*k*state.currentScale,0,Math.PI*2);ctx.fill();
- drawSpikes(ctx,state,cx,cy,k,color);
  for(const p of state.particles){
   if(!reduceMotion.matches)p.angle=(p.angle+dt*p.speed*(1+motion.boost))%(Math.PI*2);
-  const r=p.r*k;ctx.fillStyle=`rgba(${color},${p.opacity})`;ctx.beginPath();ctx.arc(cx+Math.cos(p.angle)*r,cy+Math.sin(p.angle)*r,p.size*k,0,Math.PI*2);ctx.fill();
+  if(!particleExposure)continue;
+  const origin=state.config.core*.65;
+  const r=(origin+(p.r-origin)*particleExposure)*k;ctx.fillStyle=`rgba(${color},${p.opacity*particleExposure})`;ctx.beginPath();ctx.arc(cx+Math.cos(p.angle)*r,cy+Math.sin(p.angle)*r,p.size*k,0,Math.PI*2);ctx.fill();
  }
+ // Paint the opaque core last so emerging particles remain behind it.
+ ctx.fillStyle=`rgb(${color})`;ctx.beginPath();ctx.arc(cx,cy,state.config.core*k*state.currentScale,0,Math.PI*2);ctx.fill();
+ drawSpikes(ctx,state,cx,cy,k,color);
  ctx.restore();
 }
 function tick(now){raf=0;if(document.hidden||startupCovered)return;const dt=lastDraw?Math.min(.04,(now-lastDraw)/1000):0;lastDraw=now;orbClock+=dt;paint(now,dt);if(!reduceMotion.matches)raf=requestAnimationFrame(tick)}

@@ -37,3 +37,22 @@ test('covering an already active runtime cancels its pending frame',()=>{
  const s=setup(false);s.run('wakeParticles()');assert.equal(s.frames.size,1);
  s.run('setStartupCovered(true);resizeCanvas();wakeParticles()');assert.equal(s.frames.size,0);assert.equal(s.draws,0);
 });
+
+test('docked particles emerge behind the core and reverse without resetting',()=>{
+ const s=setup(false),arcs=[];let exposed=false;
+ const scope={classList:{contains:()=>exposed},hasAttribute:()=>false};
+ s.context.canvas.parentElement={matches:()=>false,closest:()=>null};
+ s.context.canvas.getRootNode=()=>({host:scope});
+ s.context.ctx.arc=(...args)=>arcs.push(args);
+ s.run('paint(1000)');assert.equal(s.run('particleExposure'),0);
+ assert.equal(arcs.length,1,'Only the core is painted while docked');
+ exposed=true;arcs.length=0;s.run('paint(1016,.016)');
+ const first=s.run('particleExposure');assert.ok(first>0&&first<1);
+ assert.equal(arcs.length,2);assert.equal(arcs.at(-1)[2],29*146/260,'Core covers particles by painting last');
+ const radius=Math.hypot(arcs[0][0]-73,arcs[0][1]-73);
+ assert.ok(radius<29*146/260,'Particles initially remain inside the core');
+ s.run('paint(1032,.016)');const second=s.run('particleExposure');assert.ok(second>first);
+ exposed=false;s.run('paint(1048,.016)');assert.ok(s.run('particleExposure')>0&&s.run('particleExposure')<second);
+ s.reduced.matches=true;s.run('paint(1064)');assert.equal(s.run('particleExposure'),0);
+ exposed=true;s.run('paint(1080)');assert.equal(s.run('particleExposure'),1);
+});

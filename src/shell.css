@@ -126,6 +126,10 @@ html[data-fade-codex] .fade-rail-history{display:grid!important;grid-template-co
 html[data-fade-codex] [data-app-navigation-rail] .fade-rail-history button{display:grid!important;place-items:center!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;height:28px!important;margin:0!important;padding:0!important;border:0;border-radius:7px;background:transparent;pointer-events:auto}
 html[data-fade-codex] .fade-rail-history svg{display:block;width:17px;height:17px;margin:0!important;transform:none!important}
 html[data-fade-codex] .fade-rail-history button:disabled{opacity:.25;pointer-events:none}
+/* Native portals must clear the shadow-host chrome, including window tabs.
+   Raise the portal wrapper itself: a child cannot escape its stacking context. */
+html[data-fade-codex][data-fade-window-mode] [data-radix-popper-content-wrapper],
+html[data-fade-codex][data-fade-window-mode] [role="tooltip"]{z-index:2147483004!important}
 html[data-fade-project-menu] [data-radix-popper-content-wrapper]{z-index:2147483005!important;pointer-events:auto!important}
 /* Native menus and modal portals stay above the open fan. */
 html:is([data-fade-nav-open],[data-fade-picker-open]) [data-radix-popper-content-wrapper],
@@ -152,6 +156,11 @@ html[data-fade-codex][data-fade-nav-open] body>#root{filter:blur(4px)}
 html[data-fade-codex]{--fade-background-blur:0px}
 html[data-fade-codex][data-fade-nav-open]{--fade-background-blur:4px}
 /* Full-window native viewers start below Fade's application header. */
+/* Keep pane geometry mounted, but release its paint and hit targets while the
+   native viewer owns the body. The variable crosses the Fade shadow boundary. */
+html[data-fade-codex][data-fade-window-mode]:has(.codex-dialog.inset-0:not([hidden]):not([data-state=closed]) [data-testid="viewer-header"]) #fade-codex-layer{
+ --fade-window-chrome-visibility:hidden;
+}
 html[data-fade-codex] .codex-dialog.inset-0:has([data-testid="viewer-header"]){
  top:44px!important;bottom:0!important;
  height:calc(100dvh - 44px)!important;max-height:calc(100dvh - 44px)!important;

@@ -16,12 +16,15 @@ function installHomeOrb(){
   host.removeAttribute('data-orb-arriving-home');
  }
  function beginArrival(){
+  if(host.hasAttribute('data-window-mode'))return;
   const button=$('#orbButton');
   button.getAnimations().filter(a=>a.id==='core-impact').forEach(a=>a.cancel());
   const r=bounds();
   // Start now using the last measured home position, scaled to this viewport.
   // On first use, estimate the native welcome emblem above the composer.
   setTarget(r.left+r.width*(homePosition?.x??.5),r.top+r.height*(homePosition?.y??.39));
+  // Do not let an older 60 ms idle refresh delay the new home anchor.
+  clearTimeout(pending);pending=0;
   awaitingHome=true;
   host.setAttribute('data-orb-arriving-home','');
   clearTimeout(arrivalTimer);arrivalTimer=setTimeout(cancelArrival,3000);
@@ -29,6 +32,7 @@ function installHomeOrb(){
  const resize=typeof ResizeObserver==='function'?new ResizeObserver(schedule):null;
  function sync(){
   pending=0;
+  if(host.hasAttribute('data-window-mode')){if(anchor){anchor.removeAttribute('data-fade-home-anchor');resize?.unobserve(anchor);anchor=null}cancelArrival();host.removeAttribute('data-home-orb');return}
   const next=[...document.querySelectorAll('[data-testid="home-icon"]')].find(el=>{
    const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(el).display!=='none';
   })||null;
@@ -49,13 +53,18 @@ function installHomeOrb(){
  function schedule(){if(!pending)pending=setTimeout(sync,awaitingHome?0:60)}
  const observer=new MutationObserver(records=>{if(records.some(r=>!host.contains(r.target)))schedule()});
  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden']});
- on(window,'resize',schedule);on(document,'scroll',schedule,{capture:true,passive:true});
+ on(window,'resize',schedule);on(window,'fade-window-mode',schedule);on(document,'scroll',schedule,{capture:true,passive:true});
  sync();
  const dispose=()=>{observer.disconnect();resize?.disconnect();clearTimeout(pending);cancelArrival();anchor?.removeAttribute('data-fade-home-anchor')};
  dispose.beginArrival=beginArrival;dispose.cancelArrival=cancelArrival;
  dispose.refresh=()=>{clearTimeout(pending);sync()};
  dispose.startupTarget=()=>{
   dispose.refresh();
+  if(host.hasAttribute('data-window-mode')){
+   const r=$('#orbButton').getBoundingClientRect(),size=innerWidth<=560?76:94;
+   if(Math.abs(r.left+r.width/2-innerWidth/2)>1||Math.abs(r.top+r.height/2)>1||Math.abs(r.width-size)>1)return null;
+   return {x:.5,y:0,size:r.width,width:innerWidth,height:innerHeight};
+  }
   if(!anchor||awaitingHome)return null;
   const r=$('#orbButton').getBoundingClientRect();
   // The element exists at the left edge before the welcome anchor mounts,

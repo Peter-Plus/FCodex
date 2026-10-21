@@ -23,7 +23,7 @@ try{
  shadow.innerHTML='<style>:host{--line:#ddd;--ink:#222;--glass:white}button{border:0;background:transparent}[hidden]{display:none!important}'+${JSON.stringify(css)}+'</style><button id="compactTitle">Codex</button><button id="gptDirectory">GPT</button><section id="chatPicker" class="chat-picker" hidden><input id="chatSearch"><div id="chatPickerList" class="chat-picker-list"></div></section>';
  const $=s=>shadow.querySelector(s),on=(el,event,fn)=>el.addEventListener(event,fn);
  const chats=Array.from({length:40},(_,i)=>({id:String(i),title:'Chat '+i}));
- const adapter={snapshot:()=>({groups:[],recent:chats}),ensureSidebar(){},refresh(){}};
+ const adapter={snapshot:()=>({groups:[{id:'a',title:'Project A',expanded:true,chats:chats.slice(0,5),moreLabel:'展开更多'}],recent:chats}),ensureSidebar(){},refresh(){}};
  let notify;const disposeGptTabs={history:()=>({items:chats}),subscribe:fn=>{notify=fn;return()=>{}},loadHistory:async()=>{}};
  function closeNav(){}function bindChatContextMenu(){}function appendFadeChatStatus(){}function appendFadeChatActions(){}
  ${source}
@@ -41,6 +41,7 @@ try{
   await command(target,'CSS.forcePseudoState',{nodeId,forcedPseudoClasses:['hover']});
   await wait(100);
   const result=await evaluate(`(async()=>{const list=$('#chatPickerList');let removals=0;const observer=new MutationObserver(records=>{removals+=records.reduce((n,r)=>n+r.removedNodes.length,0)});observer.observe(list,{childList:true,subtree:true});let hover=true;for(let i=0;i<30;i++){notify();await new Promise(requestAnimationFrame);hover&&=getComputedStyle(row).backgroundColor==='rgb(221, 221, 221)'}observer.disconnect();return {connected:row.isConnected,hover,removals,focus:shadow.activeElement===row,scroll:list.scrollTop===savedScroll}})()`);
+  if(mode==='codex')assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key^="chat:project:a:"]').length`),5,'project copies survive repeated refreshes alongside Recents');
   assert.deepEqual(result,{connected:true,hover:true,removals:0,focus:true,scroll:true});results.push({mode,...result});
  }
  await fs.writeFile(path.join(base,'results.json'),JSON.stringify(results,null,2));

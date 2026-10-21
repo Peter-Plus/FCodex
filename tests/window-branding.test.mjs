@@ -22,3 +22,14 @@ for(const mode of ['missing','supported','throws']){
 }
 import path from 'node:path';
 function requirePath(name){assert.equal(name,'node:path');return path}
+
+test('preload exposes only native window controls and preserves their IPC',async()=>{
+ const exposed={},calls=[];
+ const ipcRenderer={invoke:async(...args)=>{calls.push(args);return {custom:true}},on(){},removeListener(){}};
+ const context=vm.createContext({require:name=>{assert.equal(name,'electron');return {contextBridge:{exposeInMainWorld:(name,api)=>exposed[name]=api},ipcRenderer}}});
+ vm.runInContext(fs.readFileSync(new URL('../startup/custom-window-preload.cjs',import.meta.url),'utf8'),context);
+ assert.deepEqual(Object.keys(exposed),['fadeWindowControls']);
+ for(const action of ['state','minimize','maximize','fullscreen','close'])await exposed.fadeWindowControls.action(action);
+ assert.deepEqual(calls.map(args=>args[0]),Array(5).fill('fade:window-action'));
+ await assert.rejects(exposed.fadeWindowControls.action('detach'),/Unsupported/);
+});

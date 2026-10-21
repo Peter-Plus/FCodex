@@ -25,12 +25,12 @@
  if(['light','dark'].includes(root.dataset.theme))config.light=root.dataset.theme==='light';
  root.setAttribute('data-fade-codex','');
  __THEME_BRIDGE__
- let navOpen=false,singleTimer=null,toastTimer,lastScroll=0,returnFocus=null,inerted=[],groups=[],recent=[],pinned=[],expanded={recent:false,pinned:true};
+ let navOpen=false,toastTimer,lastScroll=0,returnFocus=null,inerted=[],groups=[],recent=[],pinned=[],expanded={recent:false,pinned:true};
  const savedExpanded=(()=>{try{return JSON.parse(localStorage.getItem('fade-codex-orb-expanded-v2')||'{}')||{}}catch{return {}}})();
  expanded.recent=savedExpanded.recent===true;
  function persist(){try{localStorage.setItem('fade-codex-orb-expanded-v2',JSON.stringify(expanded))}catch{}}
  function announce(text){$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3200)}
- function setTheme(light){nativeTheme.set(light?'light':'dark');config.light=light;root.dataset.theme=light?'light':'dark';root.dataset.fadePolarity=root.dataset.theme;host.dataset.theme=root.dataset.theme;for(const[n]of tokens)root.style.setProperty(n,`var(--fc-${tokens.get(n).kind})`);$('#headerThemeToggle').setAttribute('aria-label',light?'切换暗色':'切换亮色');$('#headerThemeToggle').setAttribute('title',light?'切换暗色':'切换亮色');try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}wakeParticles()}
+ function setTheme(light,persist=true){nativeTheme.set(light?'light':'dark');config.light=light;root.dataset.theme=light?'light':'dark';root.dataset.fadePolarity=root.dataset.theme;host.dataset.theme=root.dataset.theme;for(const[n]of tokens)root.style.setProperty(n,`var(--fc-${tokens.get(n).kind})`);$('#headerThemeToggle').setAttribute('aria-label',light?'切换暗色':'切换亮色');$('#headerThemeToggle').setAttribute('title',light?'切换暗色':'切换亮色');if(persist)try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}wakeParticles()}
  __RAIL_HISTORY__
  const disposeRailHistory=installRailHistory(document);
  __CONVERSATION__
@@ -48,7 +48,8 @@
   if(visible===settingsPage)return;settingsPage=visible;
   root.toggleAttribute('data-fade-settings',visible);syncNativeFocus();
  }
- const settingsObserver=new MutationObserver(syncSettingsNavigation);
+ let settingsFrame=0;
+ const settingsObserver=new MutationObserver(()=>{if(!settingsFrame)settingsFrame=requestAnimationFrame(()=>{settingsFrame=0;syncSettingsNavigation()})});
  settingsObserver.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','data-app-shell-active-page']});
  syncSettingsNavigation();
  let chatPicker=null;
@@ -72,7 +73,7 @@
   headerTabsScroll.scrollLeft+=delta*(event.deltaMode===1?20:event.deltaMode===2?headerTabsScroll.clientWidth:1);
  },{passive:false});
  __GPT_TABS__
- const disposeGptTabs=installGptTabs(document,$('#gptTabs'),$('#gptAdd'),announce,{split:true,bindContextMenu:(row,id)=>bindChatContextMenu(row,id,(id,x,y)=>disposeGptTabs.contextMenu(id,x,y))});
+ const disposeGptTabs=installGptTabs(document,$('#gptTabs'),$('#gptAdd'),announce,{split:true,beforeNew:()=>!windowMode.enabled||!windowMode.newChat('gpt'),beforeOpen:id=>windowMode.prepare('gpt',id),bindContextMenu:(row,id)=>bindChatContextMenu(row,id,(id,x,y)=>disposeGptTabs.contextMenu(id,x,y))});
  const disposeCodexTabs=installCodexTabs(document,$('#codexTabs'),$('#codexAdd'),adapter,announce,()=>{const data=adapter.snapshot();const project=data.groups.find(g=>g.chats.some(c=>c.active));createChat(project?.id)},{bindContextMenu:bindChatContextMenu,viewport:headerTabsScroll,onArrival(){chatPicker?.close();closeNav(false)}});
  __HISTORY_CARDS__
  const historyCards=installHistoryCards(disposeGptTabs);
@@ -85,12 +86,13 @@
  const disposeConversationTitle=installConversationTitle();
  const windowMode=installFadeWindowMode();
  const disposeFadeSettings=installFadeSettings();
+ on(window,'fade-window-mode',()=>{shadow.querySelector('[aria-label="窗口模式"]')?.setAttribute('aria-checked',String(windowMode.enabled))});
  function actionFailed(){announce('未找到对应入口，请点击 fade 打开侧栏')}
- function switchChat(id){if(!adapter.select(id))actionFailed()}
+ function switchChat(id){if(!windowMode.prepare('codex',id))return;if(!adapter.select(id))actionFailed()}
  let creatingChat=false;
  function createChat(projectId){
-  clearTimeout(singleTimer);singleTimer=null;
   if(creatingChat)return;
+  if(windowMode.enabled){if(projectId)windowMode.newProjectChat(projectId);else windowMode.newChat();closeNav(false);return}
   creatingChat=true;disposeHomeOrb.beginArrival();burstTime=performance.now();startSpin();
   // Let the compositor present the movement before native navigation blocks
   // the main thread. Do not restore focus to the chat that is about to unmount.
@@ -190,22 +192,27 @@
  let cardEntranceVersion=0;
  function revealAfterOrbArrives(){
   const version=++cardEntranceVersion;
-  requestAnimationFrame(async()=>{
+  requestAnimationFrame(()=>{
    const orb=$('#orbButton');orb.getBoundingClientRect();
    const movement=orb.getAnimations().filter(animation=>animation.transitionProperty==='transform');
-   await Promise.allSettled(movement.map(animation=>animation.finished));
-   if(disposed||!navOpen||version!==cardEntranceVersion)return;
-   $('#navigation').classList.add('cards-ready');$('#navContent').inert=false;
+   const remaining=Math.max(0,...movement.map(animation=>{
+    const timing=animation.effect?.getComputedTiming();
+    return Math.max(0,(Number(timing?.endTime)||0)-(Number(animation.currentTime)||0));
+   }));
+   // Fade cards in during the final 180 ms, without exposing invisible controls.
+   const reveal=()=>{
+    if(disposed||!navOpen||version!==cardEntranceVersion)return;
+    $('#navigation').classList.add('cards-ready');$('#navContent').inert=false;
+   };
+   if(remaining>180)setTimeout(reveal,remaining-180);else reveal();
   });
  }
- function openNav(spin=true){if(navOpen)return;chatPicker?.close();clearTimeout(singleTimer);adapter.ensureSidebar();adapter.refresh();navOpen=true;returnFocus=document.activeElement;if(spin)startSpin();$('#navigation').classList.add('open');$('#navigation').setAttribute('role','dialog');root.setAttribute('data-fade-nav-open','');$('#navigation').setAttribute('aria-labelledby','navTitle');$('#navContent').inert=true;$('#orbButton').setAttribute('aria-expanded','true');renderRows();historyCards.open();$('#arcViewport').scrollTop=lastScroll;layoutArc();$('#orbButton').focus({preventScroll:true});revealAfterOrbArrives()}
+ function openNav(spin=true){if(navOpen)return;chatPicker?.close();adapter.ensureSidebar();adapter.refresh();navOpen=true;returnFocus=document.activeElement;if(spin)startSpin();$('#navigation').classList.add('open');$('#navigation').setAttribute('role','dialog');root.setAttribute('data-fade-nav-open','');$('#navigation').setAttribute('aria-labelledby','navTitle');$('#navContent').inert=true;$('#orbButton').setAttribute('aria-expanded','true');renderRows();historyCards.open();$('#arcViewport').scrollTop=lastScroll;layoutArc();$('#orbButton').focus({preventScroll:true});revealAfterOrbArrives()}
  function closeNav(restoreFocus=true){if(!navOpen)return;cardEntranceVersion++;$('#navigation').classList.remove('cards-ready');dismissProjectMenu();cancelReveal();lastScroll=$('#arcViewport').scrollTop;navOpen=false;root.removeAttribute('data-fade-nav-open');$('#navigation').classList.remove('open');['role','aria-modal','aria-labelledby'].forEach(a=>$('#navigation').removeAttribute(a));$('#navContent').inert=true;$('#orbButton').setAttribute('aria-expanded','false');unlock();if(restoreFocus&&returnFocus?.isConnected&&!returnFocus.closest('[inert]'))returnFocus.focus({preventScroll:true})}
- let lastOrbClick=null;
- on(document,'click',e=>{if(!lastOrbClick||e.detail===0)return;const previous=lastOrbClick;lastOrbClick=null;if(performance.now()-previous.time<=500&&Math.hypot(e.clientX-previous.x,e.clientY-previous.y)<=32){e.preventDefault();e.stopImmediatePropagation();createChat()}},{capture:true});
- on($('#orbButton'),'click',e=>{if(e.detail)lastOrbClick={time:performance.now(),x:e.clientX,y:e.clientY};clearTimeout(singleTimer);startSpin();singleTimer=setTimeout(()=>{singleTimer=null;!navOpen&&openNav(false)},250)});
- on($('#orbButton'),'dblclick',e=>e.preventDefault());
+ on($('#orbButton'),'click',()=>{startSpin();if(!navOpen)openNav(false)});
+ on($('#orbButton'),'contextmenu',e=>{e.preventDefault();e.stopPropagation();createChat()});
  on($('#orbButton'),'pointerenter',()=>host.classList.add('near-orb'));
- on(document,'pointermove',e=>{if(!navOpen){const left=$('#navigation').getBoundingClientRect().left;host.classList.toggle('near-orb',e.clientX>=left&&e.clientX<left+135&&Math.abs(e.clientY-innerHeight/2)<145)}},{passive:true});
+ on(document,'pointermove',e=>{if(!navOpen){const windowMode=host.hasAttribute('data-window-mode'),left=windowMode?0:$('#navigation').getBoundingClientRect().left;const near=windowMode?Math.abs(e.clientX-innerWidth/2)<(innerWidth<=560?38:47)&&e.clientY>=0&&e.clientY<43:e.clientX>=left&&e.clientX<left+135&&Math.abs(e.clientY-innerHeight/2)<145;if(host.classList.contains('near-orb')!==near)host.classList.toggle('near-orb',near)}},{passive:true});
  on($('#navigation'),'click',event=>{
   if(!navOpen||event.button!==0)return;
   if(event.composedPath().some(el=>el.matches?.('.nav-row,button,input,textarea,select,a')))return;
@@ -217,13 +224,18 @@
  on($('#headerMenuToggle'),'click',()=>{const open=!root.hasAttribute('data-fade-menu-open');if(open&&!document.getElementById('application-menu-trigger-file-menu')){announce('原生应用菜单尚未加载');return}root.toggleAttribute('data-fade-menu-open',open);host.toggleAttribute('data-menu-open',open);$('#headerMenuToggle').setAttribute('aria-expanded',String(open));$('#headerMenuToggle').setAttribute('aria-label',open?'收起应用菜单':'展开应用菜单');$('#headerMenuToggle').setAttribute('title',open?'收起应用菜单':'展开应用菜单')});
  const disposeFullscreen=installFullscreenControls();
  on($('#headerThemeToggle'),'click',()=>setTheme(!config.light));
+ on(window,'storage',event=>{if(event.key==='fade-orb-usage')orbUsage.set(event.newValue!=='false',false);if(event.key==='fade-composer-autohide')composerAutohide.set(event.newValue==='true',false);if(event.key==='fade-codex-v1')try{const next=JSON.parse(event.newValue);if(typeof next?.light==='boolean'&&next.light!==config.light)setTheme(next.light,false)}catch{}});
  on(document,'keydown',e=>{
   if(projectMenu||!e.composedPath().includes(host))return;
   if(e.key==='Escape'&&!$('#chatPicker').hidden){e.preventDefault();e.stopPropagation();chatPicker.close(true);return}
-  if(e.key==='Escape'){clearTimeout(singleTimer);lastOrbClick=null;if(navOpen){e.preventDefault();e.stopPropagation()}}
+  if(e.key==='Escape'){if(navOpen){e.preventDefault();e.stopPropagation()}}
   if(navOpen&&e.key==='Tab'){const targets=[$('#orbButton'),...$('#navContent button,#arcViewport,#historyViewport')].filter(el=>!el.disabled),i=targets.indexOf(shadow.activeElement);e.preventDefault();targets[(i+(e.shiftKey?-1:1)+targets.length)%targets.length]?.focus({preventScroll:true})}
  },{capture:true});
  __ORB__
+ const particleVisibilityObserver=new MutationObserver(()=>wakeParticles());
+ particleVisibilityObserver.observe(host,{attributes:true,attributeFilter:['class','data-home-orb','data-orb-arriving-home']});
+ particleVisibilityObserver.observe($('#navigation'),{attributes:true,attributeFilter:['class']});
+ on($('#orbButton'),'focus',()=>wakeParticles());on($('#orbButton'),'blur',()=>wakeParticles());
  __HOME_ORB__
  const disposeHomeOrb=installHomeOrb();
  let startupHomeRequested=false;
@@ -241,8 +253,8 @@
   return disposeHomeOrb.startupTarget();
  }
  on(window,'resize',()=>{updateFanMask();layoutArc();resizeCanvas()});
- window.__fadeCodex={version:'2.0.0',windowModeReady:()=>disposeGptTabs.ready,prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
-  if(disposed)return;dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
+ window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
+  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
   for(const[n,t]of tokens){if(t.value)root.style.setProperty(n,t.value,t.priority);else root.style.removeProperty(n)}
   for(const[n,v]of originalAttrs){if(v===null)root.removeAttribute(n);else root.setAttribute(n,v)}
   for(const[el,state]of nativeFocus){el.inert=state.inert;if(state.aria===null)el.removeAttribute('aria-hidden');else el.setAttribute('aria-hidden',state.aria)}
