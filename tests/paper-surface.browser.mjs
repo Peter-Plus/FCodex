@@ -22,9 +22,22 @@ try{
  const check=async()=>evaluate(`(async()=>{await settle();const e=document.querySelector('.thread-scroll-container'),c=e.firstElementChild,f=e.querySelector('[data-thread-scroll-footer]'),r=c.getBoundingClientRect();return {geometry:[e.clientWidth,e.clientHeight,e.scrollHeight],end:r.top+parseFloat(c.style.getPropertyValue('--fc-paper-end')),footer:f.getBoundingClientRect().top,bottom:e.getBoundingClientRect().bottom,bg:getComputedStyle(e).backgroundImage,ready:e.hasAttribute('data-fade-paper-ready'),covers:[...e.querySelectorAll('[class*="_background_"]')].map(x=>getComputedStyle(x).display),draft:document.querySelector('textarea').value}})()`);
  let result=await check();assert.deepEqual(result.geometry,before);assert.ok(result.ready);assert.equal(result.bg,'none');assert.deepEqual(result.covers,['none','none']);assert.ok(Math.abs(result.end-result.footer)<1);
  await evaluate(`document.querySelector('.thread-scroll-container').scrollTop=330`);result=await check();assert.ok(Math.abs(result.end-result.footer)<1);assert.equal(result.draft,'保留草稿');
+ // Native GPT restoration changes content height/scroll inside an animation
+ // frame. ResizeObserver runs before paint; deferring its mask update to the
+ // next frame leaves the restored viewport entirely transparent for one paint.
+ const restoration=await evaluate(`new Promise(resolve=>{const s=document.querySelector('.thread-scroll-container'),c=s.firstElementChild;let armed=false;const probe=new ResizeObserver(()=>{if(!armed)return;probe.disconnect();const body=c.getBoundingClientRect(),view=s.getBoundingClientRect();resolve({actual:parseFloat(c.style.getPropertyValue('--fc-paper-top')),expected:Math.max(0,view.top-body.top)})});probe.observe(c);requestAnimationFrame(()=>{armed=true;c.style.height='4200px';s.scrollTop=3500})})`);
+ assert.ok(Math.abs(restoration.actual-restoration.expected)<1,JSON.stringify(restoration));
  await evaluate(`document.querySelector('.footer').style.height='270px'`);result=await check();assert.ok(Math.abs(result.end-result.footer)<1);
  await evaluate(`document.querySelector('.footer').setAttribute('data-fade-composer-visible','false')`);result=await check();assert.ok(Math.abs(result.end-result.bottom)<1);
  await evaluate(`document.querySelector('.footer').removeAttribute('data-fade-composer-visible');document.querySelector('.pane').style.height='520px'`);result=await check();assert.ok(Math.abs(result.end-result.footer)<1);
+ // GPT retained virtual lists must never receive the large transcript mask,
+ // including their first commit before observer callbacks run. Codex keeps it.
+ assert.match(await evaluate(`getComputedStyle(document.querySelector('.thread-content')).maskImage`),/linear-gradient/);
+ const gptStyle=await evaluate(`(()=>{const c=document.querySelector('.thread-content'),g=document.createElement('div');g.setAttribute('data-chatgpt-conversation-selection-target','true');c.append(g);window.gptMarker=g;const s=getComputedStyle(c);return {mask:s.maskImage,clip:s.clipPath}})()`);
+ assert.deepEqual(gptStyle,{mask:'none',clip:'none'});
+ await evaluate(`document.querySelector('.thread-content').style.height='1800px';document.querySelector('.thread-scroll-container').scrollTop=1200`);
+ await check();assert.equal(await evaluate(`getComputedStyle(document.querySelector('.thread-content')).maskImage`),'none');
+ await evaluate(`gptMarker.remove()`);await check();assert.match(await evaluate(`getComputedStyle(document.querySelector('.thread-content')).maskImage`),/linear-gradient/);
  for(const theme of ['light','dark']){
   await evaluate(`document.documentElement.dataset.fadePolarity=${JSON.stringify(theme)};`);await check();
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('aside')).backgroundImage`),'none');

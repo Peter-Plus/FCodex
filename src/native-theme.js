@@ -2,7 +2,7 @@
 // the same polarity as the renderer. This preference persists with Fade's theme.
 function createNativeThemeSync(win,report){
  const bridge=win.electronBridge;
- if(!bridge?.sendMessageFromView)return {set(){},settled(){return Promise.resolve()},destroy(){}};
+ if(!bridge?.sendMessageFromView)return {set(){return Promise.resolve(false)},settled(){return Promise.resolve()},destroy(){}};
  let stopped=false,flight=null,desired=null,applied=null;
  const pending=new Map();
  function receive(event){
@@ -41,5 +41,5 @@ function createNativeThemeSync(win,report){
   flight=(async()=>{while(!stopped&&desired!==applied){const value=desired;await write(value);applied=value}})().finally(()=>{flight=null});
   return flight;
  }
- return {applyRecommendedAccent,set(value){desired=value;void flush().catch(error=>{if(!stopped)report(error)})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
+ return {applyRecommendedAccent,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped)report(error);return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
 }

@@ -779,7 +779,10 @@ html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-ready] [class*="_bac
  display:none!important;
 }
 html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-ready] [data-thread-scroll-footer]{background:transparent!important}
-html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-transcript]{
+/* GPT's retained virtual list can paint an empty composited mask while its
+   turn heights restore. Keep its transcript unmasked, including the first
+   native commit; the paper and composer styling remain shared. */
+html[data-fade-codex][data-fade-shell=orb] [data-fade-paper-transcript]:not(:has([data-chatgpt-conversation-selection-target])){
  mask-image:linear-gradient(to bottom,transparent var(--fc-paper-top),#000 calc(var(--fc-paper-top) + 28px),#000 var(--fc-paper-solid),transparent var(--fc-paper-end))!important;
  -webkit-mask-image:linear-gradient(to bottom,transparent var(--fc-paper-top),#000 calc(var(--fc-paper-top) + 28px),#000 var(--fc-paper-solid),transparent var(--fc-paper-end))!important;
  clip-path:inset(0 0 var(--fc-paper-cut) 0);

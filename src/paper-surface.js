@@ -3,17 +3,20 @@
 function installPaperSurface(doc=document){
  const win=doc.defaultView,entries=new Map();let frame=0,dead=false;
  const schedule=()=>{if(!dead&&!frame)frame=win.requestAnimationFrame(update)};
+ // Retained GPT pages restore their transcript height and scroll offset in
+ // separate commits. Do not paint either commit with the previous mask bounds.
+ function refresh(){if(dead)return;if(frame){win.cancelAnimationFrame(frame);frame=0}update()}
  function clear(entry){entry.content.removeAttribute('data-fade-paper-transcript');for(const key of ['top','solid','end','cut'])entry.content.style.removeProperty('--fc-paper-'+key);entry.scroll.removeAttribute('data-fade-paper-ready');}
- const resize=new win.ResizeObserver(schedule);
+ const resize=new win.ResizeObserver(refresh);
  function update(){
   frame=0;if(dead)return;
   const scrolls=new Set(doc.querySelectorAll('.thread-scroll-container'));
-  for(const [scroll,entry]of entries)if(!scrolls.has(scroll)||scroll.firstElementChild!==entry.content||scroll.querySelector('[data-thread-scroll-footer]')!==entry.footer){clear(entry);resize.unobserve(scroll);resize.unobserve(entry.content);if(entry.footer)resize.unobserve(entry.footer);scroll.removeEventListener('scroll',schedule);entries.delete(scroll)}
+  for(const [scroll,entry]of entries)if(!scrolls.has(scroll)||scroll.firstElementChild!==entry.content||scroll.querySelector('[data-thread-scroll-footer]')!==entry.footer){clear(entry);resize.unobserve(scroll);resize.unobserve(entry.content);if(entry.footer)resize.unobserve(entry.footer);scroll.removeEventListener('scroll',refresh);entries.delete(scroll)}
   for(const scroll of scrolls){
    const content=scroll.firstElementChild,footer=scroll.querySelector('[data-thread-scroll-footer]');
    if(!content||content===footer||!content.className.includes('thread-content'))continue;
    let entry=entries.get(scroll);
-   if(!entry){entry={scroll,content,footer};entries.set(scroll,entry);resize.observe(scroll);resize.observe(content);if(footer)resize.observe(footer);scroll.addEventListener('scroll',schedule,{passive:true})}
+   if(!entry){entry={scroll,content,footer};entries.set(scroll,entry);resize.observe(scroll);resize.observe(content);if(footer)resize.observe(footer);scroll.addEventListener('scroll',refresh,{passive:true})}
    const viewport=scroll.getBoundingClientRect(),body=content.getBoundingClientRect();if(!viewport.height||!body.height)continue;
    const hidden=footer?.getAttribute('data-fade-composer-visible')==='false';
    const foot=footer?.getBoundingClientRect();
@@ -23,8 +26,8 @@ function installPaperSurface(doc=document){
    content.setAttribute('data-fade-paper-transcript','');scroll.setAttribute('data-fade-paper-ready','');
   }
  }
- const observer=new win.MutationObserver(schedule);
+ const observer=new win.MutationObserver(refresh);
  observer.observe(doc.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-fade-composer-visible','hidden','data-app-shell-active-page']});
  win.addEventListener('resize',schedule);update();
- return ()=>{dead=true;if(frame)win.cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();win.removeEventListener('resize',schedule);for(const entry of entries.values()){entry.scroll.removeEventListener('scroll',schedule);clear(entry)}entries.clear()};
+ return ()=>{dead=true;if(frame)win.cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();win.removeEventListener('resize',schedule);for(const entry of entries.values()){entry.scroll.removeEventListener('scroll',refresh);clear(entry)}entries.clear()};
 }

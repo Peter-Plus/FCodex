@@ -20,7 +20,7 @@
 // the same polarity as the renderer. This preference persists with Fade's theme.
 function createNativeThemeSync(win,report){
  const bridge=win.electronBridge;
- if(!bridge?.sendMessageFromView)return {set(){},settled(){return Promise.resolve()},destroy(){}};
+ if(!bridge?.sendMessageFromView)return {set(){return Promise.resolve(false)},settled(){return Promise.resolve()},destroy(){}};
  let stopped=false,flight=null,desired=null,applied=null;
  const pending=new Map();
  function receive(event){
@@ -59,7 +59,44 @@ function createNativeThemeSync(win,report){
   flight=(async()=>{while(!stopped&&desired!==applied){const value=desired;await write(value);applied=value}})().finally(()=>{flight=null});
   return flight;
  }
- return {applyRecommendedAccent,set(value){desired=value;void flush().catch(error=>{if(!stopped)report(error)})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
+ return {applyRecommendedAccent,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped)report(error);return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
+}
+
+// Preserve immediate theme feedback; skip writes whose values are unchanged.
+function installFadeThemeController({root,host,button,config,tokens,nativeTheme,wake,persist,Observer=MutationObserver}){
+ let dead=false,version=0,pending=false,ready=false,lastMode=null;
+ function apply(mode){
+  if(dead||!['light','dark'].includes(mode))return;
+  if(root.dataset.fadePolarity!==mode)root.dataset.fadePolarity=mode;
+  if(host.dataset.theme!==mode)host.dataset.theme=mode;
+  for(const [name,{kind}]of tokens){const value=`var(--fc-${kind})`;if(root.style.getPropertyValue(name)!==value)root.style.setProperty(name,value)}
+  const label=mode==='light'?'切换暗色':'切换亮色';
+  for(const name of ['aria-label','title'])if(button.getAttribute(name)!==label)button.setAttribute(name,label);
+  // The controller is installed before the canvas bindings are initialized.
+  if(ready&&lastMode!==mode)wake();lastMode=mode;
+ }
+ const observer=new Observer(()=>{
+  if(dead)return;
+  const mode=root.dataset.theme;
+  if(!pending&&['light','dark'].includes(mode))config.light=mode==='light';
+  apply(mode);
+ });
+ observer.observe(root,{attributes:true,attributeFilter:['data-theme']});
+ apply(root.dataset.theme);ready=true;
+ return {
+  set(light,save=true){
+   const request=++version,mode=light?'light':'dark';config.light=light;pending=true;
+   if(root.dataset.theme!==mode)root.dataset.theme=mode;
+   apply(mode);
+   if(save)persist();
+   return nativeTheme.set(mode).then(ok=>{
+    if(dead||request!==version)return;
+    pending=false;
+    // The local theme is already applied even if native synchronization fails.
+   });
+  },
+  destroy(){dead=true;version++;observer.disconnect()}
+ };
 }
 
  const nativeTheme=createNativeThemeSync(window,()=>announce('窗口按钮主题同步失败，请重启 Codex 后重试'));
@@ -442,17 +479,20 @@ function installComposerAutohide(){
 function installPaperSurface(doc=document){
  const win=doc.defaultView,entries=new Map();let frame=0,dead=false;
  const schedule=()=>{if(!dead&&!frame)frame=win.requestAnimationFrame(update)};
+ // Retained GPT pages restore their transcript height and scroll offset in
+ // separate commits. Do not paint either commit with the previous mask bounds.
+ function refresh(){if(dead)return;if(frame){win.cancelAnimationFrame(frame);frame=0}update()}
  function clear(entry){entry.content.removeAttribute('data-fade-paper-transcript');for(const key of ['top','solid','end','cut'])entry.content.style.removeProperty('--fc-paper-'+key);entry.scroll.removeAttribute('data-fade-paper-ready');}
- const resize=new win.ResizeObserver(schedule);
+ const resize=new win.ResizeObserver(refresh);
  function update(){
   frame=0;if(dead)return;
   const scrolls=new Set(doc.querySelectorAll('.thread-scroll-container'));
-  for(const [scroll,entry]of entries)if(!scrolls.has(scroll)||scroll.firstElementChild!==entry.content||scroll.querySelector('[data-thread-scroll-footer]')!==entry.footer){clear(entry);resize.unobserve(scroll);resize.unobserve(entry.content);if(entry.footer)resize.unobserve(entry.footer);scroll.removeEventListener('scroll',schedule);entries.delete(scroll)}
+  for(const [scroll,entry]of entries)if(!scrolls.has(scroll)||scroll.firstElementChild!==entry.content||scroll.querySelector('[data-thread-scroll-footer]')!==entry.footer){clear(entry);resize.unobserve(scroll);resize.unobserve(entry.content);if(entry.footer)resize.unobserve(entry.footer);scroll.removeEventListener('scroll',refresh);entries.delete(scroll)}
   for(const scroll of scrolls){
    const content=scroll.firstElementChild,footer=scroll.querySelector('[data-thread-scroll-footer]');
    if(!content||content===footer||!content.className.includes('thread-content'))continue;
    let entry=entries.get(scroll);
-   if(!entry){entry={scroll,content,footer};entries.set(scroll,entry);resize.observe(scroll);resize.observe(content);if(footer)resize.observe(footer);scroll.addEventListener('scroll',schedule,{passive:true})}
+   if(!entry){entry={scroll,content,footer};entries.set(scroll,entry);resize.observe(scroll);resize.observe(content);if(footer)resize.observe(footer);scroll.addEventListener('scroll',refresh,{passive:true})}
    const viewport=scroll.getBoundingClientRect(),body=content.getBoundingClientRect();if(!viewport.height||!body.height)continue;
    const hidden=footer?.getAttribute('data-fade-composer-visible')==='false';
    const foot=footer?.getBoundingClientRect();
@@ -462,10 +502,10 @@ function installPaperSurface(doc=document){
    content.setAttribute('data-fade-paper-transcript','');scroll.setAttribute('data-fade-paper-ready','');
   }
  }
- const observer=new win.MutationObserver(schedule);
+ const observer=new win.MutationObserver(refresh);
  observer.observe(doc.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-fade-composer-visible','hidden','data-app-shell-active-page']});
  win.addEventListener('resize',schedule);update();
- return ()=>{dead=true;if(frame)win.cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();win.removeEventListener('resize',schedule);for(const entry of entries.values()){entry.scroll.removeEventListener('scroll',schedule);clear(entry)}entries.clear()};
+ return ()=>{dead=true;if(frame)win.cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();win.removeEventListener('resize',schedule);for(const entry of entries.values()){entry.scroll.removeEventListener('scroll',refresh);clear(entry)}entries.clear()};
 }
 
 function createFadeBackgroundStore(win){
@@ -544,14 +584,15 @@ function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
  }
  function apply(preview,previewMode){
   if(dead)return;const mode=root.dataset.fadePolarity==='light'?'light':'dark',value=previewMode===mode?preview:state[mode];
-  root.setAttribute('data-fade-background',value.kind);
+  if(root.getAttribute('data-fade-background')!==value.kind)root.setAttribute('data-fade-background',value.kind);
+  const set=(key,value)=>{if(root.style.getPropertyValue(key)!==value)root.style.setProperty(key,value)};
   if(value.kind==='custom'){
-   root.style.setProperty('--fc-custom-transform',`translate(${value.x}%,${value.y}%) rotate(${value.rotation}deg) scale(${value.zoom/100})`);
-   root.style.setProperty('--fc-custom-blur',value.blur+'px');root.style.setProperty('--fc-custom-opacity',String(value.strength/100));
-   root.style.setProperty('--fc-custom-background',`url("${value.image}")`);
-   root.style.setProperty('--fc-custom-wash',`rgb(${mode==='light'?'245 245 244':'36 36 36'} / ${100-value.strength}%)`);
-   root.style.setProperty('--fc-custom-size',value.fit==='tile'?'720px auto':'cover');root.style.setProperty('--fc-custom-repeat',value.fit==='tile'?'repeat':'no-repeat');
-  }else for(const key of keys)root.style.removeProperty(key);
+   set('--fc-custom-transform',`translate(${value.x}%,${value.y}%) rotate(${value.rotation}deg) scale(${value.zoom/100})`);
+   set('--fc-custom-blur',value.blur+'px');set('--fc-custom-opacity',String(value.strength/100));
+   set('--fc-custom-background',`url("${value.image}")`);
+   set('--fc-custom-wash',`rgb(${mode==='light'?'245 245 244':'36 36 36'} / ${100-value.strength}%)`);
+   set('--fc-custom-size',value.fit==='tile'?'720px auto':'cover');set('--fc-custom-repeat',value.fit==='tile'?'repeat':'no-repeat');
+  }else for(const key of keys)if(root.style.getPropertyValue(key))root.style.removeProperty(key);
  }
  function render(){
   if(dead)return;
@@ -737,7 +778,8 @@ function installConversationTitle(){
  expanded.recent=savedExpanded.recent===true;
  function persist(){try{localStorage.setItem('fade-codex-orb-expanded-v2',JSON.stringify(expanded))}catch{}}
  function announce(text){$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3200)}
- function setTheme(light,persist=true){nativeTheme.set(light?'light':'dark');config.light=light;root.dataset.theme=light?'light':'dark';root.dataset.fadePolarity=root.dataset.theme;host.dataset.theme=root.dataset.theme;for(const[n]of tokens)root.style.setProperty(n,`var(--fc-${tokens.get(n).kind})`);$('#headerThemeToggle').setAttribute('aria-label',light?'切换暗色':'切换亮色');$('#headerThemeToggle').setAttribute('title',light?'切换暗色':'切换亮色');if(persist)try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}wakeParticles()}
+ const themeController=installFadeThemeController({root,host,button:$('#headerThemeToggle'),config,tokens,nativeTheme,wake:()=>wakeParticles(),persist:()=>{try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}}});
+ function setTheme(light,persist=true){return themeController.set(light,persist)}
  function fadeHistoryDirection(button){
  const key=Object.keys(button).find(k=>k.startsWith('__reactFiber$'));
  for(let fiber=key?button[key]:null,depth=0;fiber&&depth<12;fiber=fiber.return,depth++){
@@ -2435,7 +2477,7 @@ function installHomeOrb(){
  }
  on(window,'resize',()=>{updateFanMask();layoutArc();resizeCanvas()});
  window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
-  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
+  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();themeController.destroy();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
   for(const[n,t]of tokens){if(t.value)root.style.setProperty(n,t.value,t.priority);else root.style.removeProperty(n)}
   for(const[n,v]of originalAttrs){if(v===null)root.removeAttribute(n);else root.setAttribute(n,v)}
   for(const[el,state]of nativeFocus){el.inert=state.inert;if(state.aria===null)el.removeAttribute('aria-hidden');else el.setAttribute('aria-hidden',state.aria)}

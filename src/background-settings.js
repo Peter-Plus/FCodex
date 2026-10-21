@@ -74,14 +74,15 @@ function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
  }
  function apply(preview,previewMode){
   if(dead)return;const mode=root.dataset.fadePolarity==='light'?'light':'dark',value=previewMode===mode?preview:state[mode];
-  root.setAttribute('data-fade-background',value.kind);
+  if(root.getAttribute('data-fade-background')!==value.kind)root.setAttribute('data-fade-background',value.kind);
+  const set=(key,value)=>{if(root.style.getPropertyValue(key)!==value)root.style.setProperty(key,value)};
   if(value.kind==='custom'){
-   root.style.setProperty('--fc-custom-transform',`translate(${value.x}%,${value.y}%) rotate(${value.rotation}deg) scale(${value.zoom/100})`);
-   root.style.setProperty('--fc-custom-blur',value.blur+'px');root.style.setProperty('--fc-custom-opacity',String(value.strength/100));
-   root.style.setProperty('--fc-custom-background',`url("${value.image}")`);
-   root.style.setProperty('--fc-custom-wash',`rgb(${mode==='light'?'245 245 244':'36 36 36'} / ${100-value.strength}%)`);
-   root.style.setProperty('--fc-custom-size',value.fit==='tile'?'720px auto':'cover');root.style.setProperty('--fc-custom-repeat',value.fit==='tile'?'repeat':'no-repeat');
-  }else for(const key of keys)root.style.removeProperty(key);
+   set('--fc-custom-transform',`translate(${value.x}%,${value.y}%) rotate(${value.rotation}deg) scale(${value.zoom/100})`);
+   set('--fc-custom-blur',value.blur+'px');set('--fc-custom-opacity',String(value.strength/100));
+   set('--fc-custom-background',`url("${value.image}")`);
+   set('--fc-custom-wash',`rgb(${mode==='light'?'245 245 244':'36 36 36'} / ${100-value.strength}%)`);
+   set('--fc-custom-size',value.fit==='tile'?'720px auto':'cover');set('--fc-custom-repeat',value.fit==='tile'?'repeat':'no-repeat');
+  }else for(const key of keys)if(root.style.getPropertyValue(key))root.style.removeProperty(key);
  }
  function render(){
   if(dead)return;

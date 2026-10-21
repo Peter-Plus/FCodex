@@ -30,7 +30,8 @@
  expanded.recent=savedExpanded.recent===true;
  function persist(){try{localStorage.setItem('fade-codex-orb-expanded-v2',JSON.stringify(expanded))}catch{}}
  function announce(text){$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3200)}
- function setTheme(light,persist=true){nativeTheme.set(light?'light':'dark');config.light=light;root.dataset.theme=light?'light':'dark';root.dataset.fadePolarity=root.dataset.theme;host.dataset.theme=root.dataset.theme;for(const[n]of tokens)root.style.setProperty(n,`var(--fc-${tokens.get(n).kind})`);$('#headerThemeToggle').setAttribute('aria-label',light?'切换暗色':'切换亮色');$('#headerThemeToggle').setAttribute('title',light?'切换暗色':'切换亮色');if(persist)try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}wakeParticles()}
+ const themeController=installFadeThemeController({root,host,button:$('#headerThemeToggle'),config,tokens,nativeTheme,wake:()=>wakeParticles(),persist:()=>{try{localStorage.setItem('fade-codex-v1',JSON.stringify(config))}catch{}}});
+ function setTheme(light,persist=true){return themeController.set(light,persist)}
  __RAIL_HISTORY__
  const disposeRailHistory=installRailHistory(document);
  __CONVERSATION__
@@ -254,7 +255,7 @@
  }
  on(window,'resize',()=>{updateFanMask();layoutArc();resizeCanvas()});
  window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
-  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
+  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();themeController.destroy();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
   for(const[n,t]of tokens){if(t.value)root.style.setProperty(n,t.value,t.priority);else root.style.removeProperty(n)}
   for(const[n,v]of originalAttrs){if(v===null)root.removeAttribute(n);else root.setAttribute(n,v)}
   for(const[el,state]of nativeFocus){el.inert=state.inert;if(state.aria===null)el.removeAttribute('aria-hidden');else el.setAttribute('aria-hidden',state.aria)}
