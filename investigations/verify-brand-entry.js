@@ -1,1 +1,0 @@
-(()=>{const s=document.getElementById('fade-codex-layer').shadowRoot,b=s.getElementById('fadeRailToggle');const states=[];for(let i=0;i<2;i++){b.click();states.push({expanded:b.getAttribute('aria-expanded'),title:b.title})}return {image:b.querySelector('img')?.complete,size:[b.offsetWidth,b.offsetHeight],states}})()

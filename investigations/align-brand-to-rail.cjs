@@ -1,1 +1,0 @@
-const fs=require('fs');const p='src/brand-entry.css';let s=fs.readFileSync(p,'utf8');s=s.replace('.compact-head{padding-left:10px}', '/* Match the native rail center and place the divider at its right edge. */\n.compact-head{padding-left:calc((var(--fade-navigation-width,60px) - 34px)/2);gap:calc((var(--fade-navigation-width,60px) - 34px)/2)}');fs.writeFileSync(p,s);

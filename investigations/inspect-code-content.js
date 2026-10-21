@@ -1,1 +1,0 @@
-(()=>({codes:[...document.querySelectorAll('code')].slice(0,5).map(e=>e.parentElement.outerHTML.slice(0,14000)),blocks:[...document.querySelectorAll('[data-language]')].slice(0,8).map(e=>({tag:e.tagName,lang:e.getAttribute('data-language'),cls:e.className}))}))()
