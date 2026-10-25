@@ -10,7 +10,7 @@ const timing=stage=>console.log(`[Inject +${((performance.now()-started)/1000).t
 const port=await fadePort(),restore=process.argv.includes('--restore');
 if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Invalid port');
 const css=await fs.readFile(path.join(dir,'theme.css'),'utf8'),js=await fs.readFile(path.join(dir,'fade.js'),'utf8');
-const expression=restore?'window.__fadeCodex?.destroy(); "restored"':`(() => {if(window.__fadeCodex)return window.__fadeCodex.status();if(!document.body)throw Error('Page not ready');let s=document.getElementById('fade-codex-style');if(!s){s=document.createElement('style');s.id='fade-codex-style';document.head.append(s)}s.textContent=${JSON.stringify(css)};${js}\nreturn window.__fadeCodex.status()})()`;
+const expression=restore?'window.__fadeCodex?.destroy(); "restored"':`(() => {if(!document.body)throw Error('Page not ready');let s=document.getElementById('fade-codex-style');if(!s){s=document.createElement('style');s.id='fade-codex-style';document.head.append(s)}s.textContent=${JSON.stringify(css)};if(window.__fadeCodex)return window.__fadeCodex.status();${js}\nreturn window.__fadeCodex.status()})()`;
 let seq=0;async function evaluate(target,code){
  const url=new URL(target.webSocketDebuggerUrl);if(!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw Error('Non-local WebSocket rejected');
  return new Promise((resolve,reject)=>{const ws=new WebSocket(url),id=++seq;const timer=setTimeout(()=>{ws.close();reject(Error('CDP timeout'))},5000);const done=(err,val)=>{clearTimeout(timer);ws.close();err?reject(err):resolve(val)};

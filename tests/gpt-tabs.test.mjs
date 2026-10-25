@@ -25,6 +25,15 @@ async function fixture({supported=true,releaseSupported=false,activitySupported=
  return {initialReady,state:win.__fadeChatSession,location,api,list,add,mapping,records,messages,released,watchers,setActivity(id,value){activity.set(id,value);for(const fn of watchers)fn({get:scope.get})},setBusy(v){busy=v},timerCount:()=>timers.size,async tick(){for(const [id,f]of [...timers]){timers.delete(id);await f()}},sync(){observe();for(const [id,f]of [...timers]){timers.delete(id);f()}},close(i){list.children[i+1].children[1].click()},activate(i){list.children[i+1].children[0].click()}};
 }
 
+test('window directory replaces the selected GPT home at the same tab position',async()=>{
+ const f=await fixture();
+ try{
+  f.api.newChat(true);const first=f.api.tabs().at(-1);f.api.newChat(true);const home=f.api.tabs().at(-1),count=f.api.tabs().length;
+  f.api.replaceHome(home);f.api.openHistory({id:'saved-chat',title:'历史聊天'});
+  assert.equal(f.api.tabs().length,count);assert.equal(f.api.tabs().at(-1).id,home.id);assert.equal(f.api.tabs().at(-1).location.pathname,'/c/saved-chat');assert.equal(first.location.pathname,'/');assert.equal(f.location.pathname,'/c/saved-chat');
+ }finally{f.api()}
+});
+
 test('GPT status follows native activity, survives ID promotion, acknowledges only the entered chat and cleans subscriptions',async()=>{
  const f=await fixture({activitySupported:true});
  try{

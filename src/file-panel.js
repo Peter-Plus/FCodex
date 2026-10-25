@@ -1,3 +1,34 @@
+// Keep the preference separate from native editor state: changing display must
+// not recreate the editor, its undo history, or an unsaved document.
+function installPreviewCodeWrap(doc){
+ const key='fade-preview-code-wrap',attr='data-fade-preview-code-nowrap',root=doc.documentElement,win=doc.defaultView;
+ const original=root.getAttribute(attr);let enabled=true;
+ try{enabled=win.localStorage.getItem(key)!=='false'}catch{}
+ const viewers=new Map();
+ function restore(state){state.observer?.disconnect();for(const [pre,value]of state.original)if(pre.getAttribute('data-overflow')==='scroll')pre.setAttribute('data-overflow',value)}
+ function syncViewers(){
+  const hosts=new Set(enabled?[]:[...(doc.querySelectorAll?.(':is([data-tab-id^="text-editor:"],[data-tab-id^="file:"]) diffs-container')||[])].filter(el=>el.shadowRoot));
+  for(const [host,state]of viewers)if(!hosts.has(host)){restore(state);viewers.delete(host)}
+  for(const host of hosts){
+   if(viewers.has(host))continue;
+   const state={original:new Map(),observer:null};
+   const sync=()=>{
+    const nodes=new Set(host.shadowRoot.querySelectorAll('pre:is([data-file],[data-diff])[data-overflow]'));
+    for(const pre of state.original.keys())if(!nodes.has(pre))state.original.delete(pre);
+    for(const pre of nodes){const value=pre.getAttribute('data-overflow');if(value!=='wrap'&&value!=='scroll')continue;if(!state.original.has(pre)||value!=='scroll')state.original.set(pre,value);if(value!=='scroll')pre.setAttribute('data-overflow','scroll')}
+   };
+   // The native renderer uses this attribute for its complete grid/scroll mode,
+   // including sticky line numbers. Reapply when it replaces virtualized rows.
+   state.observer=new win.MutationObserver(sync);state.observer.observe(host.shadowRoot,{subtree:true,childList:true,attributes:true,attributeFilter:['data-overflow']});viewers.set(host,state);sync();
+  }
+ }
+ const mounts=win.MutationObserver?new win.MutationObserver(syncViewers):null;
+ mounts?.observe(doc.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-tab-id']});
+ function apply(){root.toggleAttribute(attr,!enabled);syncViewers()}
+ function storage(event){if(event.key===key||event.key===null){try{enabled=win.localStorage.getItem(key)!=='false'}catch{}apply()}}
+ win.addEventListener('storage',storage);apply();
+ return {get enabled(){return enabled},set(value){enabled=!!value;try{win.localStorage.setItem(key,String(enabled))}catch{}apply()},destroy(){mounts?.disconnect();for(const state of viewers.values())restore(state);viewers.clear();win.removeEventListener('storage',storage);if(original===null)root.removeAttribute(attr);else root.setAttribute(attr,original)}};
+}
 // Native pointer capture can outlive :hover as the pane moves under the cursor.
 // Keep native sizing/capture, but prevent pointer overflow from entering full view.
 function fadeInstallPanelDragState(doc){
@@ -84,6 +115,44 @@ function fadeScrollHeaderActions(event,row,header){
  row.scrollLeft+=delta*unit;
  event.preventDefault();event.stopPropagation();
 }
+// Windows shell.openExternal(fileURL) can fail silently in the native toolbar.
+// For an already loaded local HTML page, reuse the native system-default file
+// opener (shell.openPath), without changing URL handlers or other file types.
+function fadeExternalHtmlPath(value){
+ try{
+  const url=new URL(value);
+  if(url.protocol!=='file:'||url.hostname||url.search||url.hash)return null;
+  const path=decodeURIComponent(url.pathname).replace(/^\/([a-z]:\/)/i,'$1');
+  if(!/^[a-z]:\//i.test(path)||! /\.html?$/i.test(path)||/[\x00-\x1f\\]/.test(path))return null;
+  return path;
+ }catch{return null}
+}
+function fadeExternalHtmlTarget(button){
+ let fiber=button[Object.keys(button).find(k=>k.startsWith('__reactFiber$'))];
+ if(fiber?.alternate){let root=fiber;while(root.return)root=root.return;if(root.stateNode?.current&&root.stateNode.current!==root)fiber=fiber.alternate}
+ for(let depth=0;fiber&&depth<24;depth++,fiber=fiber.return){
+  const props=fiber.memoizedProps;
+  if(typeof props?.currentUrl==='string')return props.isAddressEditing===false?fadeExternalHtmlPath(props.currentUrl):null;
+ }
+ return null;
+}
+function installExternalHtmlOpen(doc,platform,report){
+ let stopped=false;const pending=new WeakSet();
+ const click=event=>{
+  const button=event.target?.closest?.('[data-browser-sidebar-open-external]');
+  if(!button||button.disabled||!button.closest('[data-browser-sidebar-toolbar]'))return;
+  const path=fadeExternalHtmlTarget(button);if(!path)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  if(pending.has(button))return;pending.add(button);
+  Promise.resolve().then(platform).then(async api=>{
+   if(stopped)return;
+   const result=await api.openIn.open({hostId:'local',path,target:'systemDefault'});
+   if(result?.success!==true)throw Error('Open failed');
+  }).catch(()=>{if(!stopped)report('无法用系统默认应用打开此 HTML 文件，请检查文件是否存在及默认应用设置')}).finally(()=>pending.delete(button));
+ };
+ doc.addEventListener('click',click,true);
+ return ()=>{stopped=true;doc.removeEventListener('click',click,true)};
+}
 function installFilePanel(doc,report){
  const states=new Map(),panels=new Map(),headers=new Map();let stopped=false,platformPromise,frame=0;
  const win=doc.defaultView;const disposeDragState=fadeInstallPanelDragState(doc);
@@ -105,6 +174,7 @@ function installFilePanel(doc,report){
   }
   return platformPromise;
  }
+ const disposeExternalHtml=installExternalHtmlOpen(doc,platform,report);
  function mark(state,el,name,value=''){
   if(!el)return;
   if(!state.attrs.some(a=>a[0]===el&&a[1]===name))state.attrs.push([el,name,el.getAttribute(name)]);
@@ -154,15 +224,18 @@ function installFilePanel(doc,report){
  const resize=typeof ResizeObserver==='function'?new ResizeObserver(entries=>{const targets=new Set(entries.map(entry=>entry.target));for(const state of headers.values())if(targets.has(state.header)||targets.has(state.trailing))layoutHeader(state)}):null;
  function adaptHeader(header){
   let state=headers.get(header);
-  let children=[...header.children].filter(e=>!e.classList?.contains('fade-file-heading')&&!e.classList?.contains('fade-panel-chrome'));
+  const nativeChildren=el=>[...el.children].filter(e=>!e.classList?.contains('fade-file-heading')&&!e.classList?.contains('fade-panel-chrome')&&!e.classList?.contains('fade-preview-freshness'));
+  let children=nativeChildren(header);
   const flow=children.length===1&&children[0].tagName==='DIV'?children[0]:null;
-  if(flow)children=[...flow.children];
+  if(flow)children=nativeChildren(flow);
+  // Reconciliation may change only a middle slot or wrapper. Release stale
+  // geometry before falling back for an unsupported native structure.
+  if(state&&(state.flow!==flow||state.children.length!==children.length||children.some((child,index)=>child!==state.children[index]))){resize?.unobserve(header);resize?.unobserve(state.trailing);restore(state);headers.delete(header);state=null}
   if(children.length<2||children.length>4)return null; // Unknown layouts retain native geometry.
-  if(state&&(state.leading!==children[0]||state.trailing!==children.at(-1))){resize?.unobserve(header);resize?.unobserve(state.trailing);restore(state);headers.delete(header);state=null}
   if(!state){
    const owner=header.closest('[data-app-shell-tab-panel-controller="right"]');
    const id=owner?.getAttribute('data-tab-id')||'';
-   state={header,leading:children[0],trailing:children.at(-1),middle:children.length>=3?children.at(-2):null,auxiliary:children.length===4?children[1]:null,kind:header.hasAttribute('data-browser-sidebar-toolbar')?'browser':id==='diff'?'review':'file',attrs:[]};headers.set(header,state);
+   state={header,flow,children,leading:children[0],trailing:children.at(-1),middle:children.length>=3?children.at(-2):null,auxiliary:children.length===4?children[1]:null,kind:header.hasAttribute('data-browser-sidebar-toolbar')?'browser':id==='diff'?'review':'file',attrs:[]};headers.set(header,state);
    mark(state,header,'data-fade-viewer-header',state.kind);mark(state,state.leading,'data-fade-header-leading');mark(state,state.trailing,'data-fade-header-trailing');
    if(flow)mark(state,flow,'data-fade-header-flow');
    if(state.middle){mark(state,state.middle,'data-fade-header-middle');mark(state,header,'data-fade-header-three')}
@@ -206,6 +279,15 @@ function installFilePanel(doc,report){
     if(position==='absolute')mark(shell,child,'data-fade-panel-absolute');
    }
    if(!unified)shell.close.disabled=!fadePanelCloseControl(panel);
+   // Hide only the native informational read-only banner, using its message ID
+   // rather than localized text. Keep actual errors and editor restrictions.
+   for(const banner of panel.querySelectorAll('div.shrink-0.px-4.pt-3')){
+    const content=banner.firstElementChild;
+    if(!content)continue;
+    const props=content[Object.keys(content).find(key=>key.startsWith('__reactProps$'))];
+    if(props?.children?.props?.id==='textFileEditor.largeFileReadOnly')mark(shell,banner,'data-fade-readonly-notice');
+    else if(banner.hasAttribute('data-fade-readonly-notice'))banner.removeAttribute('data-fade-readonly-notice');
+   }
    const viewers=[...panel.querySelectorAll('[data-testid="viewer-header"],[data-browser-sidebar-toolbar]')].filter(visible);
    for(const header of viewers)adaptHeader(header);
    // Use the native tab strip when present; otherwise share the first header.
@@ -240,5 +322,5 @@ function installFilePanel(doc,report){
  });
  observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','data-review-path','aria-hidden','hidden','data-tab-id','aria-pressed']});
  win?.addEventListener?.('fade-window-mode',sync);sync();
- return ()=>{stopped=true;win?.removeEventListener?.('fade-window-mode',sync);disposeDragState();observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
+ return ()=>{stopped=true;disposeExternalHtml();win?.removeEventListener?.('fade-window-mode',sync);disposeDragState();observer.disconnect();resize?.disconnect();if(frame)win?.cancelAnimationFrame(frame);for(const state of states.values())restore(state);states.clear();for(const state of headers.values())restore(state);headers.clear();for(const state of panels.values())restore(state);panels.clear()};
 }

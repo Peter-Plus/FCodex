@@ -44,6 +44,31 @@ try{
   if(mode==='codex')assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key^="chat:project:a:"]').length`),5,'project copies survive repeated refreshes alongside Recents');
   assert.deepEqual(result,{connected:true,hover:true,removals:0,focus:true,scroll:true});results.push({mode,...result});
  }
+
+ const nativeSource=await fs.readFile('src/native-adapter.js','utf8');
+ await evaluate(`
+ ${nativeSource}
+ window.nativeRoot=document.createElement('aside');nativeRoot.className='app-shell-left-panel';document.body.append(nativeRoot);
+ const thread=(id,title)=>'<button data-app-action-sidebar-thread-row data-app-action-sidebar-thread-kind="local" data-app-action-sidebar-thread-host-id="local" data-app-action-sidebar-thread-id="'+id+'" data-app-action-sidebar-thread-title="'+title+'">'+title+'</button>';
+ nativeRoot.innerHTML='<section id="customA" data-app-action-sidebar-section data-app-action-sidebar-section-heading="Same" data-app-action-sidebar-section-collapsed="false"><button data-app-action-sidebar-section-toggle>Toggle</button><button aria-haspopup="menu" id="sectionMenu">Menu</button>'+thread('direct','Direct')+'<div data-sidebar-project-container-id="project"><button data-app-action-sidebar-project-row data-app-action-sidebar-project-id="p" data-app-action-sidebar-project-label="Nested" data-app-action-sidebar-project-collapsed="false">Project</button>'+thread('nested','Nested chat')+'</div>'+thread('last','Last')+'</section><section id="customB" data-app-action-sidebar-section data-app-action-sidebar-section-heading="Same" data-app-action-sidebar-section-collapsed="true"><button data-app-action-sidebar-section-toggle>Toggle</button></section>';
+ for(const [index,section]of [...nativeRoot.children].entries()){section.__reactFiber$fixture={memoizedProps:{sectionKey:'custom:'+index}};section.querySelector('[data-app-action-sidebar-section-toggle]').onclick=()=>section.setAttribute('data-app-action-sidebar-section-collapsed',String(section.getAttribute('data-app-action-sidebar-section-collapsed')!=='true'))}
+ window.changes=[];window.nativeAdapter=createNativeAdapter(document,d=>changes.push(d));nativeAdapter.start();
+ `);
+ assert.deepEqual(await evaluate(`(()=>{const d=nativeAdapter.snapshot();return {ids:d.sections.map(s=>s.id),titles:d.sections.map(s=>s.title),order:d.sections[0].items.map(i=>i.kind==='chat'?i.chat.id:i.project.id),nested:d.groups[0].chats.length,recent:d.recent.length,menu:nativeAdapter.sectionMenu('custom:0').id}})()`),{ids:['custom:0','custom:1'],titles:['Same','Same'],order:['local:local:direct','p','local:local:last'],nested:1,recent:0,menu:'sectionMenu'});
+ assert.equal(await evaluate(`nativeAdapter.toggleSection('custom:1',true)&&nativeAdapter.snapshot().sections[1].expanded`),true);
+ assert.equal(await evaluate(`nativeAdapter.toggleSection('custom:1',true)&&nativeAdapter.snapshot().sections[1].expanded`),true,'opening twice must not collapse');
+ await evaluate(`document.getElementById('customA').setAttribute('data-app-action-sidebar-section-heading','Renamed');nativeRoot.prepend(document.getElementById('customB'))`);
+ await wait(160);
+ assert.deepEqual(await evaluate(`changes.at(-1).sections.map(s=>[s.id,s.title])`),[['custom:1','Same'],['custom:0','Renamed']]);
+ assert.deepEqual(await evaluate(`filterFadeChats(nativeAdapter.snapshot(),'nested chat').sections.map(s=>[s.id,s.items.length,s.items[0].project.chats.length])`),[['custom:0',1,1]]);
+ await evaluate(`picker.destroy();adapter.snapshot=()=>nativeAdapter.snapshot();adapter.toggleSection=(...args)=>nativeAdapter.toggleSection(...args);adapter.sectionMenu=(...args)=>nativeAdapter.sectionMenu(...args);adapter.refresh=()=>{};window.sectionPicker=installChatPicker(adapter);sectionPicker.openFor('codex',$('#compactTitle'))`);
+ assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key^="section:custom:"]').length`),2);
+ assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key="chat:custom:0:local:local:direct"]').length`),1);
+ assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key="project:p"]').length`),1,'nested project must appear only inside its section');
+ await evaluate(`$('#chatPickerList').querySelector('[data-picker-key="section:custom:0"]').click()`);
+ assert.equal(await evaluate(`$('#chatPickerList').querySelectorAll('[data-picker-key="chat:custom:0:local:local:direct"]').length`),0);
+ await evaluate(`sectionPicker.destroy();nativeAdapter.destroy();nativeRoot.remove()`);
+ results.push({sections:'duplicate names, native order, project nesting, toggle, mutation refresh, search and directory rendering passed'});
  await fs.writeFile(path.join(base,'results.json'),JSON.stringify(results,null,2));
  console.log('Codex and GPT: stable hover, DOM identity, focus and scroll across 30 background refreshes each.');
 }finally{

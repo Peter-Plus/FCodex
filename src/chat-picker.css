@@ -64,3 +64,9 @@
 .chat-picker-add-project{display:grid;place-items:center;width:28px;height:28px;padding:5px;flex:none;border-radius:7px;color:var(--muted)}
 .chat-picker-add-project svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
 .chat-picker-add-project:hover,.chat-picker-add-project:focus-visible{color:var(--purple);background:var(--accent-soft)}
+
+.chat-picker-section-actions>.chat-picker-row{flex:1;min-width:0}
+
+.chat-picker-row.native-section{font-weight:600;color:var(--muted);font-size:12px;margin-top:6px}
+.chat-picker-nested-project{margin-left:12px}
+.nav-row.native-section .row-title{font-weight:600;color:var(--purple)}

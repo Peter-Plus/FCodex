@@ -149,20 +149,24 @@ function installGptTabs(doc,list,add,report,options={}){
   if(id&&!id.startsWith('local-chatgpt:')&&(!tab.location||tab.location.pathname==='/'))tab.location={pathname:pathFor(id),search:tab.location?.search??'',state:{sidebarProductMode:'codex'}};
  }
  function go(target){const r=router();if(!r)throw Error('未找到原生导航');r.navigator.push({pathname:target.pathname,search:target.search??''},target.state)}
- function activate(tab){
+ let replacementHome=null;
+ function activate(tab,skipSave=false){
   if(!ready){report('聊天入口仍在加载');return}
-  try{save();if(!tab){state.active=null;go(state.codex);render();return}
+  try{if(!skipSave)save();if(!tab){state.active=null;go(state.codex);render();return}
    upgrade(tab);state.active=tab.id;
    if(tab.location)go(tab.location);else module.zYt(scope,{activeProject:null,fadeChat:true,fadeDraftKey:tab.id,initialChatGptConversationId:tab.conversationId,sidebarProductMode:'codex'});
    syncActivity();render();
   }catch(e){report('未能打开聊天：'+e.message)}
  }
- function newChat(internal=false){if(!ready)return;if(!internal&&options.beforeNew?.()===false)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
+ function newChat(internal=false){if(!ready)return;replacementHome=null;if(!internal&&options.beforeNew?.()===false)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
  function openHistory(chat){
   if(!ready)return false;if(options.beforeOpen?.(chat.id)===false)return false;
+  save();
+  const home=state.tabs.includes(replacementHome)&&replacementHome.location?.pathname==='/'?replacementHome:null;replacementHome=null;
   let tab=state.tabs.find(t=>resolved(t)===chat.id||t.location?.pathname===pathFor(chat.id));
-  if(!tab){tab={id:'fade-chat-'+crypto.randomUUID(),title:chat.title||'ChatGPT',conversationId:chat.id,location:{pathname:pathFor(chat.id),search:'',state:{sidebarProductMode:'codex'}}};state.tabs.push(tab)}
-  activate(tab);return true;
+  if(!tab){tab={id:home?.id??'fade-chat-'+crypto.randomUUID(),title:chat.title||'ChatGPT',conversationId:chat.id,location:{pathname:pathFor(chat.id),search:'',state:{sidebarProductMode:'codex'}}};if(home)state.tabs.splice(state.tabs.indexOf(home),1,tab);else state.tabs.push(tab)}
+  else if(home&&home!==tab)state.tabs.splice(state.tabs.indexOf(home),1);
+  activate(tab,true);return true;
  }
  function close(id){
   save();const index=state.tabs.findIndex(t=>t.id===id);if(index<0)return;
@@ -283,7 +287,7 @@ function installGptTabs(doc,list,add,report,options={}){
  const dispose=()=>{disposed=true;reorder.destroy();if(!releaseAfterDispose)cacheRelease?.destroy();observer.disconnect();clearTimeout(pending);nativeSubscriptions.forEach(fn=>fn());activityWatches.forEach(stop=>stop());activityWatches.clear();add.removeEventListener('click',create);list.replaceChildren();listeners.clear()};
  Object.assign(dispose,{renameCurrent(){const tab=state.tabs.find(t=>t.id===state.active);return tab?contextMenu(resolved(tab),0,0,true):false},contextMenu,chatAction,accountUsage,refreshAccountUsage,closeAllForClassic,openHistory,history,loadHistory,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn)},home(){if(!ready)return false;state.active=null;go({pathname:'/',search:'',state:{sidebarProductMode:'codex'}});return true}});
  // Object.assign evaluates getters immediately: keep readiness live across async init.
- Object.assign(dispose,{activate,close,newChat,tabs:()=>state.tabs});
+ Object.assign(dispose,{activate,close,newChat,replaceHome(tab){replacementHome=tab&&(!tab.location||tab.location.pathname==='/')?tab:null},tabs:()=>state.tabs});
  Object.defineProperty(dispose,'ready',{get:()=>ready&&!disposed});
  return dispose;
 }

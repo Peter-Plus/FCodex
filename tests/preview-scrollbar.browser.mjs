@@ -1,0 +1,35 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
+import {createTestArea,retireTestArea} from './work-area.mjs';
+import {command} from '../startup/session.mjs';
+const area=await createTestArea('preview-scrollbar'),profile=path.join(area,'browser');
+const child=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--no-first-run','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore',windowsHide:true});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));let target;
+try{
+ let port;for(let i=0;i<80;i++){try{port=Number((await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break}catch{await wait(100)}}assert.ok(port);
+ target=(await(await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t=>t.type==='page');
+ const evaluate=async expression=>(await command(target,'Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})).result.value;
+ const source=await fs.readFile(new URL('../src/preview-scrollbar.js',import.meta.url),'utf8'),css=await fs.readFile(new URL('../src/file-panel.css',import.meta.url),'utf8');
+ await command(target,'Emulation.setDeviceMetricsOverride',{width:900,height:700,deviceScaleFactor:1,mobile:false});
+ await evaluate(`document.documentElement.setAttribute('data-fade-codex','');document.head.innerHTML='<style>body{margin:0;--fc-line:#bbb;--fc-panel:#fff;--fc-control-border:#ccc;--fc-muted:#666}.pane{position:fixed;left:100px;top:80px;width:500px;height:350px;overflow:auto}</style>';document.body.innerHTML='<div class="pane" data-tab-id="file:local:test.js"><diffs-container></diffs-container></div>';const sheet=document.createElement('style');sheet.textContent=${JSON.stringify(css)};document.head.append(sheet);window.pane=document.querySelector('.pane');const shadow=document.querySelector('diffs-container').attachShadow({mode:'open'});shadow.innerHTML='<style>:host{display:block}[data-code]{display:block;width:100%;overflow-x:auto}.content{width:1800px;height:1400px;background:repeating-linear-gradient(#eee 0 20px,#fff 20px 40px)}</style><code data-code><div class="content">Long code line</div></code>';window.code=shadow.querySelector('[data-code]');${source};window.disposeScrollbar=installPreviewScrollbar(document);`);
+ const move=async(x,y)=>{await command(target,'Input.dispatchMouseEvent',{type:'mouseMoved',x,y});await wait(180)};
+ const snapshot=()=>evaluate(`(()=>{const b=document.querySelector('.fade-preview-scrollbar'),i=b.querySelector('input'),r=b.getBoundingClientRect();return {visible:b.getAttribute('data-visible'),left:r.left,top:r.top,width:r.width,value:Number(i.value),max:Number(i.max),scroll:code.scrollLeft}})()`);
+ await move(550,220);let result=await snapshot();assert.equal(result.visible,'true');assert.equal(result.width,140);assert.equal(result.top,144);const initialTop=result.top;
+ const start=result.left+24,end=result.left+result.width-24,y=result.top+15;
+ await command(target,'Input.dispatchMouseEvent',{type:'mousePressed',x:start,y,button:'left',clickCount:1});
+ await command(target,'Input.dispatchMouseEvent',{type:'mouseMoved',x:end,y,button:'left',buttons:1});await wait(80);
+ result=await snapshot();assert(result.scroll>700,'drag must scroll native content');assert.equal(result.visible,'true');
+ await command(target,'Input.dispatchMouseEvent',{type:'mouseReleased',x:end,y,button:'left',clickCount:1});
+ await evaluate('pane.scrollTop=500');await wait(100);result=await snapshot();assert.equal(result.top,initialTop,'bar stays at viewport top while reading midway through file');
+ await evaluate('code.scrollLeft=320');await wait(100);assert.equal((await snapshot()).value,320,'native scroll updates slider');
+ await move(160,350);assert.equal((await snapshot()).visible,'false');
+ await move(250,165);assert.equal((await snapshot()).visible,'false','outside top 20 percent');
+ await move(460,220);assert.equal((await snapshot()).visible,'false','outside right 25 percent');
+ await move(250,105);assert.equal((await snapshot()).visible,'true','top activation zone');
+ await evaluate('pane.style.width="180px"');await move(260,200);result=await snapshot();assert(result.width<=148);
+ await evaluate('code.firstElementChild.style.width="100%"');await wait(150);assert.equal((await snapshot()).visible,'false','no overflow needs no control');
+ await evaluate('disposeScrollbar()');assert.equal(await evaluate('document.querySelectorAll(".fade-preview-scrollbar").length'),0);
+ console.log('PASS: shadow file preview, native drag/scroll sync, viewport anchoring, hover zones, narrow pane, no overflow, disposal.');
+}finally{if(target)await command(target,'Browser.close').catch(()=>{});await retireTestArea(area,child)}

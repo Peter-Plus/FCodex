@@ -24,7 +24,13 @@
   }
   const scope='html[data-fade-codex] .cm-content[data-language="markdown"]';
   let css='';
-  if(code.size)css+=`${scope} :is(${[...code].join(',')}){background:var(--fc-inline-bg)!important;color:var(--fc-inline-fg)!important;border-radius:4px;padding:.08em .32em;box-shadow:inset 0 0 0 1px var(--fc-inline-border);box-decoration-break:clone;-webkit-box-decoration-break:clone}`;
+  if(code.size){
+   const marks=`:is(${[...code].join(',')})`;
+   css+=`${scope} .cm-line:not(.cm-markdown-code-line) ${marks}{background:var(--fc-inline-bg)!important;color:var(--fc-inline-fg)!important;border-radius:4px;padding:.08em .32em;box-shadow:inset 0 0 0 1px var(--fc-inline-border);box-decoration-break:clone;-webkit-box-decoration-break:clone}`;
+   // Native Markdown assigns the inline-code token to fenced code too. Reset
+   // that token only; leave any nested syntax-highlighting marks untouched.
+   css+=`${scope} .cm-markdown-code-line ${marks}{background:transparent!important;color:inherit!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important;font-family:inherit!important;box-decoration-break:slice;-webkit-box-decoration-break:slice}`;
+  }
   if(links.size){const sel=`${scope} :is(${[...links].join(',')})`;css+=`${sel}{color:var(--fc-link)!important;text-decoration:underline;text-underline-offset:.16em}${sel}:hover{color:var(--fc-link-hover)!important}`;}
   if(editorStyle.textContent!==css)editorStyle.textContent=css;
  }

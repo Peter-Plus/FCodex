@@ -18,3 +18,11 @@
 .fade-window-menu{position:absolute;top:39px;z-index:30;min-width:180px;padding:6px;border:1px solid var(--edge);border-radius:10px;background:var(--bg,#202020);box-shadow:0 8px 30px #0003;pointer-events:auto}
 .fade-window-menu button{display:block;width:100%;padding:9px 12px;text-align:left;color:var(--ink);border:0;border-radius:6px;background:transparent;font:inherit;cursor:pointer}
 .fade-window-menu button:hover{background:var(--line)}
+.fade-preview-directory{position:fixed;z-index:31;box-sizing:border-box;padding:6px;border:1px solid var(--edge);border-radius:10px;background:var(--bg,#202020);color:var(--ink);box-shadow:0 8px 30px #0003;pointer-events:auto;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--edge) transparent;visibility:var(--fade-window-chrome-visibility,visible);-webkit-app-region:no-drag}
+.fade-preview-directory[hidden]{display:none}
+.fade-preview-directory-heading{padding:7px 10px;font-size:12px;opacity:.65}
+.fade-preview-directory button{display:block;position:relative;box-sizing:border-box;width:100%;padding:9px 12px 9px 30px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;border:0;border-radius:6px;background:transparent;font:inherit;cursor:pointer}
+.fade-preview-directory button[aria-checked=true]{color:var(--purple);background:var(--line)}
+.fade-preview-directory button[aria-checked=true]::before{content:'✓';position:absolute;left:10px}
+.fade-preview-directory button:is(:hover,:focus-visible){background:var(--line)}
+.fade-preview-directory button:focus-visible{outline:1px solid var(--purple);outline-offset:-1px}

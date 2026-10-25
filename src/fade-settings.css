@@ -28,3 +28,8 @@
 .fade-accent-apply{font-size:11px;color:var(--purple);flex:none;margin-left:12px}
 
 .fade-setting-shortcut{margin-left:auto;padding-left:10px;font:10px/1.4 "Segoe UI",sans-serif;color:var(--muted);white-space:nowrap}
+
+.fade-settings-group[hidden]{display:none}
+.fade-settings-group{margin:0 4px 6px 10px;padding-left:8px;border-left:1px solid var(--edge)}
+.fade-settings-chevron{font-size:18px;line-height:1;color:var(--muted)}
+.fade-settings-group-entry[aria-expanded=true] .fade-settings-chevron{transform:rotate(90deg)}

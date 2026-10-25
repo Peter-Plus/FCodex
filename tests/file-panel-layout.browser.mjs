@@ -59,6 +59,24 @@ try{
     assert.equal(await evaluate(`document.querySelectorAll('.fade-panel-chrome').length`),0,'showing preview never adds another close button');
     assert.equal(await evaluate(`document.querySelector('[data-fade-viewer-header]').querySelectorAll('.fade-file-heading button').length`),report.fileActions,'file actions are not duplicated on tab visibility changes');
    }
+   if(mode==='code'&&polarity==='light'&&width===760){
+    // Keep both endpoints alive while native middle slots and wrappers change.
+    await evaluate(`(()=>{window.dynamicHeader=document.querySelector('[data-fade-viewer-header]');window.dynamicSlots=Array.from({length:3},(_,i)=>{const slot=document.createElement('div'),button=document.createElement('button');button.textContent=['Title','Find','Open'][i];slot.append(button);return slot});dynamicHeader.replaceChildren(...dynamicSlots);window.nativeClicks=0;dynamicSlots[2].firstChild.addEventListener('click',()=>nativeClicks++)})()`);await wait(100);
+    await evaluate(`window.oldMiddle=dynamicSlots[1];dynamicSlots[1]=document.createElement('div');dynamicSlots[1].append(oldMiddle.firstChild.cloneNode(true));oldMiddle.replaceWith(dynamicSlots[1])`);await wait(100);
+    assert.equal(await evaluate(`dynamicSlots[1].hasAttribute('data-fade-header-middle')&&!oldMiddle.hasAttribute('data-fade-header-middle')`),true,'replacement middle receives layout and detached slot is restored');
+    await evaluate(`window.auxiliarySlot=document.createElement('div');auxiliarySlot.textContent='Changes';dynamicSlots[1].before(auxiliarySlot)`);await wait(100);
+    assert.equal(await evaluate(`dynamicHeader.hasAttribute('data-fade-header-four')&&auxiliarySlot.hasAttribute('data-fade-header-auxiliary')`),true,'async fourth slot updates geometry');
+    await evaluate(`window.unknownSlot=document.createElement('div');unknownSlot.textContent='Extra';dynamicSlots[1].before(unknownSlot)`);await wait(100);
+    assert.equal(await evaluate(`!dynamicHeader.hasAttribute('data-fade-viewer-header')&&[...dynamicHeader.querySelectorAll('*')].every(e=>![...e.attributes].some(a=>/^data-fade-header-/.test(a.name)))`),true,'unsupported structure releases all old slot geometry');
+    await evaluate(`unknownSlot.remove();auxiliarySlot.remove()`);await wait(100);
+    assert.equal(await evaluate(`dynamicHeader.hasAttribute('data-fade-header-three')&&!dynamicHeader.hasAttribute('data-fade-header-four')`),true,'supported structure recovers without mode toggle');
+    await evaluate(`window.oldFlow=document.createElement('div');oldFlow.append(...dynamicSlots);dynamicHeader.append(oldFlow)`);await wait(100);
+    await evaluate(`window.newFlow=document.createElement('div');newFlow.append(...dynamicSlots);oldFlow.replaceWith(newFlow)`);await wait(100);
+    assert.equal(await evaluate(`newFlow.hasAttribute('data-fade-header-flow')&&!oldFlow.hasAttribute('data-fade-header-flow')`),true,'wrapper replacement is adapted with unchanged endpoints');
+    assert.equal(await evaluate(`dynamicSlots[2].firstChild.click();nativeClicks`),1,'native action handler survives adaptation');
+    assert.equal(await evaluate(`dynamicHeader.querySelectorAll('.fade-file-heading').length`),1,'dynamic updates do not duplicate injected actions');
+    assert.equal(await evaluate(`dynamicSlots.every(e=>{const r=e.firstChild.getBoundingClientRect(),h=dynamicHeader.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=h.left-1&&r.right<=h.right+1&&r.top>=h.top-1&&r.bottom<=h.bottom+1})`),true,'native buttons remain visible inside header');
+   }
    await evaluate('disposePanel()');
   }
  }

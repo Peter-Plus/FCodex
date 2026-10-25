@@ -1,5 +1,7 @@
-/* Overlay the native footer without reserving its height in the transcript. */
-html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container{--thread-scroll-padding-bottom:16px!important;scroll-padding-bottom:0!important}
+/* Preserve the native --thread-scroll-padding-bottom: it tracks the footer's
+   layout height plus reading clearance and preserves the viewport on resize.
+   Translating the footer's children below does not change that measured height. */
+html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container{scroll-padding-bottom:0!important}
 html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]{overflow:clip;background:transparent!important}
 /* The native jump-to-bottom button sits above the footer's bounding box. */
 html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer][data-fade-composer-visible=true],

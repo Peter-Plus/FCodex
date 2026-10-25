@@ -12,6 +12,37 @@ test('shell close uses native layout control, never a tab close button',()=>{
  toggle.disabled=true;assert.equal(c.fadeCloseFilePanel(panel),false);assert.equal(tabClicks,0);
 });
 function setup(){const c=vm.createContext({});vm.runInContext(source,c);return c}
+
+test('preview wrap preference persists, follows other windows, and restores on disposal',()=>{
+ const c=setup(),attrs=new Map(),saved=new Map(),listeners=new Map();
+ const root={getAttribute:k=>attrs.get(k)??null,setAttribute:(k,v)=>attrs.set(k,v),removeAttribute:k=>attrs.delete(k),toggleAttribute:(k,on)=>on?attrs.set(k,''):attrs.delete(k)};
+ const win={localStorage:{getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v)},addEventListener:(k,f)=>listeners.set(k,f),removeEventListener:k=>listeners.delete(k)};
+ const doc={documentElement:root,defaultView:win};
+ let preference=c.installPreviewCodeWrap(doc);
+ assert.equal(preference.enabled,true);
+ preference.set(false);assert.equal(attrs.has('data-fade-preview-code-nowrap'),true);
+ preference.destroy();assert.equal(attrs.size,0);assert.equal(listeners.size,0);
+ preference=c.installPreviewCodeWrap(doc);assert.equal(preference.enabled,false);
+ saved.set('fade-preview-code-wrap','true');listeners.get('storage')({key:'fade-preview-code-wrap'});
+ assert.equal(preference.enabled,true);assert.equal(attrs.size,0);
+ preference.destroy();
+});
+test('preview wrap reaches native shadow viewers, survives rerenders, and restores their mode',()=>{
+ const c=setup(),attrs=new Map(),observers=[],saved=new Map();let hosts=[];
+ const root={getAttribute:k=>attrs.get(k)??null,setAttribute:(k,v)=>attrs.set(k,v),removeAttribute:k=>attrs.delete(k),toggleAttribute:(k,on)=>on?attrs.set(k,''):attrs.delete(k)};
+ class Observer{constructor(callback){this.callback=callback;observers.push(this)}observe(){}disconnect(){this.disconnected=true}}
+ const win={MutationObserver:Observer,localStorage:{getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v)},addEventListener(){},removeEventListener(){}};
+ const preference=c.installPreviewCodeWrap({body:{},documentElement:root,defaultView:win,querySelectorAll:()=>hosts});
+ preference.set(false);
+ let mode='wrap';const pre={getAttribute:()=>mode,setAttribute:(_,v)=>{mode=v}};
+ hosts=[{shadowRoot:{querySelectorAll:selector=>{assert.equal(selector,'pre:is([data-file],[data-diff])[data-overflow]');return [pre]}}}];observers[0].callback();
+ assert.equal(mode,'scroll','a file mounted after disabling wrapping inherits the preference');
+ mode='wrap';observers[1].callback();assert.equal(mode,'scroll','native rerender does not reset the preference');
+ preference.set(true);assert.equal(mode,'wrap');assert.equal(observers[1].disconnected,true);
+ preference.set(false);assert.equal(mode,'scroll');
+ preference.destroy();assert.equal(mode,'wrap');assert(observers.every(o=>o.disconnected));
+});
+
 test('review headers resolve their own diff path and host, not an unrelated editor tab',()=>{
  const c=setup();
  const props={reviewPath:'src/first.js',hostConfig:{id:'local'},cwd:'G:/project'};
@@ -48,7 +79,7 @@ test('one stable shell survives file, review and browser switches, preserves nat
  const tab={closest:()=>null,getAttribute:()=>mode==='file'?'file:local:/G:/work/a.js':'browser:123'};
  header.closest=q=>q.includes('tab-panel-controller')?tab:null;
  panel.querySelectorAll=q=>q.startsWith('[data-testid="viewer-header"]')?(mode==='file'?[header]:[]):q.includes('tab-panel-controller')?[tab]:[];
- const doc={body:{},createElement:t=>new El(t),querySelectorAll:q=>q.startsWith('aside')?[panel]:[]};panel.ownerDocument=doc;
+ const doc={body:{},addEventListener(){},removeEventListener(){},createElement:t=>new El(t),querySelectorAll:q=>q.startsWith('aside')?[panel]:[]};panel.ownerDocument=doc;
  const c=vm.createContext({clearTimeout(){},MutationObserver:class{constructor(fn){callback=fn}observe(){}disconnect(){}}});vm.runInContext(source,c);
  const dispose=c.installFilePanel(doc,()=>{}),shell=panel.children[0];
  assert.equal(shell.className,'fade-panel-chrome');assert(panel.hasAttribute('data-fade-file-panel'));assert.equal(header.children[0],open);assert(header.hasAttribute('data-fade-file-header'));
@@ -81,7 +112,7 @@ test('non-file panels stay untouched and observer is disposed',()=>{
  let disconnected=false,observed=false;
  const c=vm.createContext({setTimeout,clearTimeout,MutationObserver:class{observe(){observed=true}disconnect(){disconnected=true}}});
  vm.runInContext(source,c);
- const dispose=c.installFilePanel({body:{},querySelectorAll:()=>[]},()=>{throw Error('Unexpected action')});
+ const dispose=c.installFilePanel({body:{},addEventListener(){},removeEventListener(){},querySelectorAll:()=>[]},()=>{throw Error('Unexpected action')});
  assert(observed);dispose();assert(disconnected);
 });
 test('browser and aggregate diff never inherit the path of a neighbouring file pane',()=>{

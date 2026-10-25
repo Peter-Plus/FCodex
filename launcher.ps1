@@ -20,7 +20,7 @@ $appDir = Join-Path $taskRoot '.fade-runtime-isolated\app'
 $runtimeBuildDeferred = $false
 function Build-FadeRuntime {
  Push-Location $taskRoot
- try { $buildArgs=@($officialAppDir); if ($DiagnosticHold) { $buildArgs+= '--diagnostic-hold' }; & $node (Join-Path $taskRoot 'startup\build-runtime.mjs') @buildArgs; if ($LASTEXITCODE -ne 0) { throw 'Installed Codex version is not supported by the Fade runtime. Official files were not modified.' } } finally { Pop-Location }
+ try { $buildArgs=@($officialAppDir); if ($DiagnosticHold) { $buildArgs+= '--diagnostic-hold' }; & $node (Join-Path $taskRoot 'startup\prepare-runtime.mjs') @buildArgs; if ($LASTEXITCODE -ne 0) { throw 'Fade runtime build failed. See the specific error above or launch.log. Official files were not modified.' } } finally { Pop-Location }
 }
 if ($DiagnosticHold) {
  if ($Restore -or $NoStartup -or $Preview) { throw 'DiagnosticHold requires a fresh animated startup.' }
@@ -39,6 +39,9 @@ $exe = Join-Path $appDir 'ChatGPT.exe'
 if (-not (Test-Path -LiteralPath $exe)) { $exe = Join-Path $appDir 'Codex.exe' }
 if (-not (Test-Path -LiteralPath $exe)) { throw 'Codex launcher not found.' }
 Write-Host "Fade launcher: $exe"
+if (-not $Restore -and -not $DiagnosticHold) {
+ & (Join-Path $taskRoot 'startup\register-notifications.ps1') -Executable $exe
+}
 . (Join-Path $taskRoot 'startup\endpoint.ps1')
 $sessionPath=Join-Path $taskRoot '.fade-session.json'
 $preferred=19222

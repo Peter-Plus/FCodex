@@ -11,6 +11,7 @@ import {patchWindowPreview,patchPreviewScope} from './window-preview-patch.mjs';
 import {patchWindowModePages,assertWindowModeAsset} from './window-mode-patch.mjs';
 import {patchWindowComposerFocus} from './window-focus-patch.mjs';
 import {patchPageHomeHooks,patchPageHomeConsumers} from './window-home-patch.mjs';
+import {supportedArchiveHash} from './runtime-fallback.mjs';
 const source=process.argv[2];if(!source)throw Error('Pass the official app directory');
 const verifyOnly=process.argv.includes('--verify-only');
 const diagnostic=process.argv.includes('--diagnostic-hold');
@@ -22,7 +23,10 @@ const archive=path.join(source,'resources/app.asar'),fd=await fs.open(archive,'r
 const prefix=Buffer.alloc(16);await fd.read(prefix,0,16,0);const header=Buffer.alloc(prefix.readUInt32LE(12));await fd.read(header,0,header.length,16);
 const tree=JSON.parse(header),offset=8+prefix.readUInt32LE(4),size=(await fd.stat()).size;
 const hash=b=>createHash('sha256').update(b).digest('hex');
-if(hash(header)!=='beb6d4c814d5ab5691135d8c6c1ba77834de0476cf049f2bb7b3e182928c822c')throw Error('This Codex build has not been validated. Launch the official app or update Fade; no files were changed.');
+if(hash(header)!==supportedArchiveHash){
+ console.log('This Codex build has not been validated. Attempting to build Fade against the installed client; compatibility is not guaranteed.');
+ console.log('Installed ASAR header SHA-256: '+hash(header)+'. Official files will not be modified.');
+}
 let existing;try{existing=JSON.parse(await fs.readFile(buildPath,'utf8'))}catch{}
 // Asset identity participates in build caching; launching never transcodes media.
 const mediaManifest=await fs.readFile('Arts/startup-loop.json','utf8');
@@ -41,7 +45,7 @@ if(existing?.oldHash===hash(header)&&existing?.revision===6&&existing?.viewRevis
  }catch{}finally{await cached?.close()}
 }
 if(cacheValid&&!verifyOnly){console.log('Fade runtime already matches installed client');await fd.close();process.exit(0)}
-function entry(p){let n=tree;for(const k of p.split('/'))n=n.files[k];return n}
+function entry(p){let n=tree;for(const k of p.split('/')){n=n.files?.[k];if(!n)throw Error('Missing Codex archive entry: '+p)}return n}
 async function read(p){const n=entry(p),b=Buffer.alloc(n.size);await fd.read(b,0,b.length,offset+Number(n.offset));return b.toString()}
 const mainName=Object.keys(entry('.vite/build').files).find(n=>/^main-.*\.js$/.test(n));
 let main=await read('.vite/build/'+mainName);
@@ -117,7 +121,7 @@ let cursor=size-offset;
 for(const [name,data]of files){const keys=name.split('/');let n=tree;for(const k of keys.slice(0,-1))n=n.files[k];const blockSize=4194304,blocks=[];for(let i=0;i<data.length;i+=blockSize)blocks.push(hash(data.subarray(i,i+blockSize)));n.files[keys.at(-1)]={size:data.length,offset:String(cursor),integrity:{algorithm:'SHA256',hash:hash(data),blockSize,blocks}};cursor+=data.length}
 await fs.mkdir(destination,{recursive:true});
 console.log('Copying isolated runtime...');
-await fs.cp(source,destination,{recursive:true,filter:p=>p!==archive,force:false,errorOnExist:false});
+await fs.cp(source,destination,{recursive:true,filter:p=>p!==archive,force:true});
 const json=Buffer.from(JSON.stringify(tree)),padded=Math.ceil(json.length/4)*4,pre=Buffer.alloc(16+padded);pre.writeUInt32LE(4,0);pre.writeUInt32LE(8+padded,4);pre.writeUInt32LE(4+padded,8);pre.writeUInt32LE(json.length,12);json.copy(pre,16);
 const output=path.join(destination,'resources/app.asar');await fs.writeFile(output,pre);await pipeline(createReadStream(archive,{start:offset}),createWriteStream(output,{flags:'a'}));for(const data of files.values())await fs.appendFile(output,data);await fd.close();
 // Update the copied EXE's exact ASAR-header digest; keep integrity validation on.

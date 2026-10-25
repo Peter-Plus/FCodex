@@ -15,8 +15,12 @@ function installComposerAutohide(){
    marked.add(footer);mark(footer,'data-fade-autohide-footer','');
    const box=footer.getBoundingClientRect(),area=footer.closest('.thread-scroll-container')?.getBoundingClientRect();
    const bottom=area?.bottom??window.innerHeight;
+   // Include the scroll-to-bottom button and the gap above the expanded composer.
+   const scrollButton=footer.querySelector('button[class~="group/scroll-to-bottom"]');
+   const scrollBox=scrollButton?.getBoundingClientRect();
+   const keepTop=scrollBox?.height?Math.min(box.top,scrollBox.top-8):box.top-64;
    const near=mouse&&mouse.x>=box.left&&mouse.x<=box.right&&mouse.y>=bottom-40&&mouse.y<=bottom;
-   const over=mouse&&footer.getAttribute('data-fade-composer-visible')==='true'&&(footer.matches(':hover')||(mouse.x>=box.left&&mouse.x<=box.right&&mouse.y>=box.top&&mouse.y<=bottom));
+   const over=mouse&&footer.getAttribute('data-fade-composer-visible')==='true'&&(footer.matches(':hover')||(mouse.x>=box.left&&mouse.x<=box.right&&mouse.y>=keepTop&&mouse.y<=bottom));
    const focus=footer.contains(document.activeElement);
    const popup=[...footer.querySelectorAll('[aria-expanded=true],[data-state=open]')].some(el=>el.getClientRects().length);
    const portal=[...document.querySelectorAll('[role=menu],[role=listbox],[role=dialog],[data-radix-popper-content-wrapper]')].some(el=>el.getClientRects().length&&!el.closest('[hidden],[data-state=closed]'));

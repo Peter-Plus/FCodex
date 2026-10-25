@@ -425,8 +425,10 @@ html[data-fade-codex] .thread-scroll-container > div > [class*="_background_"][c
  right:16px!important;
 }
 
-/* Overlay the native footer without reserving its height in the transcript. */
-html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container{--thread-scroll-padding-bottom:16px!important;scroll-padding-bottom:0!important}
+/* Preserve the native --thread-scroll-padding-bottom: it tracks the footer's
+   layout height plus reading clearance and preserves the viewport on resize.
+   Translating the footer's children below does not change that measured height. */
+html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container{scroll-padding-bottom:0!important}
 html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer]{overflow:clip;background:transparent!important}
 /* The native jump-to-bottom button sits above the footer's bounding box. */
 html[data-fade-codex][data-fade-composer-autohide] [data-fade-autohide-footer][data-fade-composer-visible=true],
@@ -440,6 +442,7 @@ html[data-fade-codex][data-fade-composer-autohide] .thread-scroll-container [cla
 
 
 /* Style the actual right workspace before its content mounts. Never match toolbar buttons. */
+html[data-fade-codex] [data-fade-readonly-notice]{display:none!important}
 html[data-fade-window-mode] aside[data-app-shell-focus-area="right-panel"]{visibility:hidden!important;pointer-events:none!important;position:absolute!important;width:0!important;min-width:0!important;margin:0!important}
 html[data-fade-window-mode] [data-fade-page-key] [class~="@container/app-shell-main-content"]{width:100%!important;max-width:none!important;flex:1 1 auto!important}
 /* Native split previews keep a measured frame width and align it to the right.
@@ -447,12 +450,39 @@ html[data-fade-window-mode] [data-fade-page-key] [class~="@container/app-shell-m
 html[data-fade-window-mode] [data-fade-page-key] [class*="_MainContentViewport_"]{min-width:0!important;width:100%!important;flex:1 1 0!important}
 html[data-fade-window-mode] [data-fade-page-key] [class*="_MainContentFrame_"]{width:100%!important;min-width:0!important;max-width:100%!important;align-self:stretch!important}
 html[data-fade-window-mode] [data-fade-unified-preview]{position:fixed;top:85px;height:calc(100dvh - 85px);z-index:3;background:var(--fc-file-body,var(--fc-bg));overflow:hidden;min-width:0}
+/* Native browser portals live outside the preview column. The original main
+   surface now covers only chats, so its host-wide clip excludes the preview.
+   Keep each webview's own measured clip/visibility and clear only that old clip.
+   Raise the shared portal stacking context above the opaque preview (z=3),
+   while keeping it below native menus and Fade's window controls. */
+html[data-fade-codex][data-fade-window-mode] [data-embedded-frame-host-root]{z-index:4}
+html[data-fade-codex][data-fade-window-mode] [data-browser-host-root]{clip-path:none!important}
 [data-fade-unified-preview][hidden],.fade-preview-native-host[hidden]{display:none!important}
 .fade-preview-native-host{height:100%;min-width:0;display:flex;flex-direction:column}
 .fade-preview-native-host>[role=tabpanel]{width:100%;min-height:0;flex:1}
 [data-fade-unified-preview] [data-app-shell-workspace-layout-toggle]{display:none!important}
 html[data-fade-codex]{--fc-file-glass:#2b2b2b;--fc-file-edge:#ffffff23;--fc-file-line:#3a3a3a;--fc-file-body:#242424;--fc-file-scroll:#595959;--fc-file-scroll-hover:#808080}
 html[data-fade-codex][data-fade-polarity=light]{--fc-file-glass:#f7f8fa;--fc-file-edge:#0000001b;--fc-file-line:#e6e8ee;--fc-file-body:#fcfcfd;--fc-file-scroll:#bdc3cf;--fc-file-scroll-hover:#939dab}
+/* Native editors draw selection backgrounds themselves (including inside the
+   diff shadow root). Do not inherit Fade's inverted selection foreground onto
+   that unchanged background. Leave native selection geometry/paint intact. */
+html[data-fade-codex] :is(diffs-container,.cm-editor,.cm-editor *)::selection{
+ color:var(--fc-fg)!important;
+}
+/* Portaled out of native draggable headers and editor clipping layers. */
+html[data-fade-codex] .fade-preview-refresh{position:fixed;z-index:2147482998;display:grid;place-items:center;width:42px;height:42px;padding:10px;box-sizing:border-box;border:1px solid var(--fc-file-edge);border-radius:12px;background:var(--fc-file-glass);color:var(--fc-fg);box-shadow:0 4px 16px #0003;cursor:pointer;pointer-events:auto!important;-webkit-app-region:no-drag!important;touch-action:manipulation;opacity:.6;transition:opacity .15s ease}
+html[data-fade-codex] .fade-preview-refresh[hidden]{display:none!important}
+html[data-fade-codex] .fade-preview-refresh svg{width:22px;height:22px;pointer-events:none}
+html[data-fade-codex] .fade-preview-refresh:hover:not(:disabled){background:var(--fc-file-body);border-color:var(--fc-accent);color:var(--fc-accent)}
+html[data-fade-codex] .fade-preview-refresh[data-stale=true]{border-color:var(--fc-accent);color:var(--fc-accent)}
+html[data-fade-codex] .fade-preview-refresh:focus-visible{outline:2px solid var(--fc-accent);outline-offset:3px}
+html[data-fade-codex] .fade-preview-refresh:disabled{cursor:wait}
+/* CodeMirror can use browser selection as well as its own painted selection.
+   Pair the foreground above with a readable fill in both rendering paths. */
+html[data-fade-codex] .cm-editor{--fc-editor-selection-bg:#504563}
+html[data-fade-codex][data-fade-polarity=light] .cm-editor{--fc-editor-selection-bg:#ded5ef}
+html[data-fade-codex] :is(.cm-editor,.cm-editor *)::selection{background:var(--fc-editor-selection-bg)!important}
+html[data-fade-codex] .cm-editor .cm-selectionBackground{background:var(--fc-editor-selection-bg)!important}
 /* The window-mode viewer is a full column, not a floating right-hand card.
    Share the viewer's chrome and palette without inheriting card margins/radii.
    Keep syntax highlighting, diff semantics and embedded web content native. */
@@ -627,6 +657,58 @@ html[data-fade-codex] aside[data-app-shell-focus-area="right-panel"] [class~="gr
 
 /* Full workspace preview is not supported by the card layout yet. */
 html[data-fade-codex] button[data-app-shell-workspace-layout-toggle="right-panel"]{display:none!important}
+/* Only file editors: leave chat code blocks, composers, and review diffs alone.
+   CodeMirror measures computed white-space to update its visual-line geometry. */
+html[data-fade-codex][data-fade-preview-code-nowrap] :is([data-tab-id^="text-editor:"],[data-tab-id^="file:"]) .cm-content:not([data-language="markdown"]){
+ white-space:pre!important;overflow-wrap:normal!important;word-break:normal!important;
+}
+/* Small viewport control; the native scrollbar remains available as well. */
+html[data-fade-codex] .fade-preview-scrollbar{position:fixed;z-index:2147482999;box-sizing:border-box;height:30px;padding:0 10px;display:flex;align-items:center;border:1px solid var(--fc-line);border-radius:999px;background:var(--fc-panel);box-shadow:0 3px 14px #0003;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 140ms ease,visibility 140ms;user-select:none;-webkit-app-region:no-drag}
+html[data-fade-codex] .fade-preview-scrollbar[data-visible=true]{opacity:.96;visibility:visible;pointer-events:auto}
+html[data-fade-codex] .fade-preview-scrollbar input{appearance:none;width:100%;min-width:0;height:24px;margin:0;padding:0;background:transparent;cursor:ew-resize;touch-action:none;outline:none}
+html[data-fade-codex] .fade-preview-scrollbar input::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:var(--fc-control-border)}
+html[data-fade-codex] .fade-preview-scrollbar input::-webkit-slider-thumb{appearance:none;width:28px;height:10px;margin-top:-3px;border-radius:8px;background:var(--fc-muted)}
+html[data-fade-codex] .fade-preview-scrollbar input:focus-visible{outline:2px solid var(--fc-accent);outline-offset:2px;border-radius:8px}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] .fade-preview-scrollbar{transition:none}}
+
+html[data-fade-codex] .fade-preview-refresh:is(:hover,:active,:focus-visible,[aria-busy=true]){opacity:1}
+html[data-fade-codex] .fade-preview-refresh[aria-busy=true] svg{animation:fade-preview-refresh-spin .4s linear infinite}
+@keyframes fade-preview-refresh-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){html[data-fade-codex] .fade-preview-refresh{transition:none}html[data-fade-codex] .fade-preview-refresh[aria-busy=true] svg{animation:none}}
+
+html[data-fade-codex] .fade-preview-freshness{align-items:center;justify-content:center;flex:0 0 13px;width:13px;height:13px;color:var(--fc-accent)}
+html[data-fade-codex] .fade-preview-freshness svg{display:block;width:13px;height:13px}
+
+/* Native Markdown is an editable CodeMirror document, not rendered HTML.
+   Use its semantic decorations without replacing lines, widgets or selections. */
+@scope (html[data-fade-codex] :is([data-tab-id^="text-editor:"],[data-tab-id^="file:"]) .cm-editor:has(.cm-content[data-language="markdown"])) {
+ :scope{font-size:14px!important;color:var(--fc-fg)!important;background:transparent!important}
+ .cm-scroller{font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif!important;line-height:1.75!important;padding:30px max(22px,calc((100% - 720px)/2)) 80px!important;scrollbar-width:thin}
+ .cm-content[data-language="markdown"]{min-width:0!important;flex-shrink:1!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:normal!important;caret-color:var(--fc-accent)!important}
+ .cm-line{padding-inline:0!important}
+ .cm-line:has(>br:only-child){line-height:.8!important}
+ .file-editor-heading{font-family:inherit!important;font-weight:650!important;letter-spacing:-.025em;color:var(--fc-fg)!important;line-height:1.4}
+ .file-editor-heading-1{font-size:26px!important;font-weight:700!important}
+ .file-editor-heading-2{font-size:20px!important}
+ .file-editor-heading-3{font-size:17px!important}
+ :is(.file-editor-heading-4,.file-editor-heading-5,.file-editor-heading-6){font-size:14px!important;font-weight:650!important}
+ .cm-line:has(.file-editor-heading){padding-block:16px 5px!important}
+ .cm-line:first-child:has(.file-editor-heading){padding-top:0!important}
+ .cm-line:has(.file-editor-heading-1){padding-bottom:12px!important;border-bottom:1px solid var(--fc-line)}
+ .cm-line.cm-markdown-list-item{padding-inline-start:14px!important;line-height:1.8!important}
+ .cm-line.cm-markdown-blockquote{border-inline-start:3px solid color-mix(in srgb,var(--fc-accent) 50%,var(--fc-line))!important;padding:7px 14px!important;background:color-mix(in srgb,var(--fc-accent) 5%,transparent);color:var(--fc-muted)}
+ .cm-line.cm-markdown-horizontal-rule{background:linear-gradient(var(--fc-line),var(--fc-line)) center/100% 1px no-repeat!important}
+ .cm-line.cm-markdown-code-line{font-family:"Cascadia Code",Consolas,monospace!important;font-size:13px!important;line-height:1.65!important;padding-inline:14px!important;background:color-mix(in srgb,var(--fc-fg) 4%,var(--fc-file-body))!important}
+ .cm-line.cm-markdown-code-line-first{padding-top:12px!important;border-start-start-radius:10px!important;border-start-end-radius:10px!important}
+ .cm-line.cm-markdown-code-line-first[data-language]{padding-block:8px 4px!important}
+ .cm-markdown-code-line-first::after{font-size:11px!important;letter-spacing:.02em;color:var(--fc-muted)!important}
+ .cm-line.cm-markdown-code-line-last{padding-bottom:12px!important;border-end-start-radius:10px!important;border-end-end-radius:10px!important}
+ .cm-line.cm-markdown-table-row{border-inline:1px solid var(--fc-line);border-bottom:1px solid var(--fc-line);font-size:13px;line-height:1.65}
+ .cm-line.cm-markdown-table-header{border-top:1px solid var(--fc-line);background:color-mix(in srgb,var(--fc-fg) 5%,var(--fc-file-body));color:var(--fc-fg)}
+ .cm-markdown-table-cell{padding:10px 12px!important}
+ .cm-markdown-table-cell+.cm-markdown-table-cell{border-inline-start:1px solid var(--fc-line)}
+ .cm-content img:not(.cm-widgetBuffer){max-width:100%;height:auto;border-radius:8px}
+}
 
 html[data-fade-codex] nav:has([data-thread-user-message-navigation-rail-list]){
  left:auto!important;right:var(--fade-rail-inset,6px)!important;

@@ -28,6 +28,13 @@ public static class FadeTaskbarProperties {
    try{Marshal.ThrowExceptionForHR(store.SetValue(ref key,ref value));Marshal.ThrowExceptionForHR(store.Commit());}finally{PropVariantClear(ref value);}
   }finally{Marshal.ReleaseComObject(store);}
  }
+ public static string ReadShortcutId(string path){
+  Guid iid=typeof(IFadePropertyStore).GUID;IFadePropertyStore store;
+  Marshal.ThrowExceptionForHR(SHGetPropertyStoreFromParsingName(path,IntPtr.Zero,0,ref iid,out store));
+  try{var key=new FadePropertyKey(5);FadePropVariant value;Marshal.ThrowExceptionForHR(store.GetValue(ref key,out value));
+   try{return value.vt==31?Marshal.PtrToStringUni(value.value):null;}finally{PropVariantClear(ref value);}
+  }finally{Marshal.ReleaseComObject(store);}
+ }
  public static string Read(IntPtr window,uint pid){var store=Open(window);try{var key=new FadePropertyKey(pid);FadePropVariant v;Marshal.ThrowExceptionForHR(store.GetValue(ref key,out v));try{return v.vt==31?Marshal.PtrToStringUni(v.value):"(unset vt="+v.vt+")";}finally{PropVariantClear(ref v);}}finally{Marshal.ReleaseComObject(store);}}
  public static void Write(IntPtr window,uint pid,string text){var store=Open(window);try{var key=new FadePropertyKey(pid);var v=new FadePropVariant{vt=31,value=Marshal.StringToCoTaskMemUni(text)};try{Marshal.ThrowExceptionForHR(store.SetValue(ref key,ref v));}finally{PropVariantClear(ref v);}}finally{Marshal.ReleaseComObject(store);}}
 }

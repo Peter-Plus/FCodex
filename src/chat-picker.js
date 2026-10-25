@@ -1,6 +1,7 @@
 function filterFadeChats(data,query){
  const q=query.trim().toLocaleLowerCase(),matches=s=>s.toLocaleLowerCase().includes(q);
- return {pinned:(data.pinned??[]).filter(c=>!q||matches(c.title)),groups:data.groups.map(g=>({...g,chats:q&&!matches(g.title)?g.chats.filter(c=>matches(c.title)):g.chats})).filter(g=>!q||matches(g.title)||g.chats.length),recent:data.recent.filter(c=>!q||matches(c.title))};
+ const sections=(data.sections??[]).filter(s=>s.custom).map(s=>({...s,items:s.items.flatMap(item=>{if(!q||matches(s.title))return [item];if(item.kind==='chat')return matches(item.chat.title)?[item]:[];const g=item.project,chats=matches(g.title)?g.chats:g.chats.filter(c=>matches(c.title));return matches(g.title)||chats.length?[{...item,project:{...g,chats}}]:[]})})).filter(s=>!q||matches(s.title)||s.items.length);
+ return {sections,pinned:(data.pinned??[]).filter(c=>!q||matches(c.title)),groups:data.groups.map(g=>({...g,chats:q&&!matches(g.title)?g.chats.filter(c=>matches(c.title)):g.chats})).filter(g=>!q||matches(g.title)||g.chats.length),recent:data.recent.filter(c=>!q||matches(c.title))};
 }
 function installChatPicker(adapter){
  const trigger=$('#compactTitle'),panel=$('#chatPicker'),search=$('#chatSearch'),liveList=$('#chatPickerList');
@@ -10,7 +11,7 @@ function installChatPicker(adapter){
  function sectionHeading(title,key,state){const button=document.createElement('button');button.type='button';button.className='chat-picker-section chat-picker-section-toggle';button.dataset.pickerKey=key+':'+mode;button.textContent=title;button.setAttribute('aria-expanded',String(state[mode]));button.setAttribute('aria-label',(state[mode]?'收起':'展开')+title);button.onclick=()=>{state[mode]=!state[mode];render();list.querySelector('[data-picker-key="'+key+':'+mode+'"]')?.focus({preventScroll:true})};if(key==='projects'&&mode==='codex'){const group=document.createElement('div');group.className='chat-picker-section-actions';const add=document.createElement('button');add.type='button';add.className='chat-picker-add-project';add.dataset.pickerKey='add-project';add.title='创建新项目';add.setAttribute('aria-label','创建新项目');add.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';add.onclick=()=>{adapter.ensureSidebar();const native=[...document.querySelectorAll('[data-app-action-sidebar-section-heading="Projects"] button')].find(b=>/^(添加新项目|创建新项目|Add new project|New project|Create project)$/i.test(b.getAttribute('aria-label')||''));if(!native||native.disabled){announce('创建项目入口尚未就绪');return}preserveForContextMenu(add);native.click()};group.append(button,add);list.append(group)}else list.append(button)}
  function pinnedHeading(){sectionHeading('置顶','pinned',pinnedExpanded)}
 
- const searchExpanded=new Set();let opened=false,contextMenuFocus=false;
+ const searchExpanded=new Set(),searchSections=new Set();let opened=false,contextMenuFocus=false;
  function position(){
   if(!opened)return;
   const anchor=customAnchor?(customAnchor.isConnected?customAnchor.getBoundingClientRect():customRect):(mode==='gpt'?gptTrigger:trigger).getBoundingClientRect();
@@ -20,7 +21,7 @@ function installChatPicker(adapter){
   panel.style.left=(left-bounds.left)+'px';panel.style.top=(top-bounds.top)+'px';
   panel.style.maxHeight=Math.max(0,viewport.clientHeight-top-12)+'px';
  }
- function restoreSearch(){for(const id of searchExpanded)adapter.toggle(id,false);searchExpanded.clear()}
+ function restoreSearch(){for(const id of searchSections)adapter.toggleSection(id,false);searchSections.clear();for(const id of searchExpanded)adapter.toggle(id,false);searchExpanded.clear()}
  function close(focus=false){if(!opened)return;opened=false;contextMenuFocus=false;document.documentElement.removeAttribute('data-fade-picker-open');panel.hidden=true;trigger.setAttribute('aria-expanded','false');gptTrigger.setAttribute('aria-expanded','false');restoreSearch();if(focus)(mode==='gpt'?gptTrigger:trigger).focus({preventScroll:true})}
  function preserveForContextMenu(row){if(opened&&panel.contains(row))contextMenuFocus=true}
  function row(title,kind,action,key){
@@ -54,17 +55,16 @@ function installChatPicker(adapter){
   if(mode==='gpt'){const data=disposeGptTabs.history(),query=search.value.trim().toLocaleLowerCase();list.replaceChildren();const matches=data.items.filter(c=>c.title.toLocaleLowerCase().includes(query));if(matches.some(c=>c.pinned))pinnedHeading();let recentHeading=false;for(const chat of matches){if(chat.pinned&&!pinnedExpanded.gpt)continue;if(!chat.pinned&&!recentHeading){recentHeading=true;sectionHeading('最近','recent',recentExpanded)}if(!chat.pinned&&!recentExpanded.gpt)continue;const b=row(chat.title,'chat',()=>{close();disposeGptTabs.openHistory(chat)},'gpt:'+chat.id);bindChatContextMenu(b,chat.id,(id,x,y)=>disposeGptTabs.contextMenu(id,x,y));const item=document.createElement('div');item.className='chat-picker-chat';item.append(b);appendFadeChatActions(item,chat,disposeGptTabs,'gpt');list.append(item)}if(!data.items.length)list.append(row(data.loading?'正在加载…':'暂无聊天记录','more',()=>loadGpt(),'empty'));if(data.more&&recentExpanded.gpt)list.append(row(data.loading?'加载中…':'更多','more',()=>loadGpt(true),'more'));return}
  const data=adapter.snapshot(),query=search.value.trim();
   // Mount collapsed native groups for search; restore their state when search ends.
-  if(query){for(const g of data.groups)if(!g.expanded&&!searchExpanded.has(g.id)){searchExpanded.add(g.id);adapter.toggle(g.id,true)}}
+  if(query){for(const s of data.sections??[])if(s.custom&&!s.expanded&&!searchSections.has(s.id)){searchSections.add(s.id);adapter.toggleSection(s.id,true)}for(const g of data.groups)if(!g.expanded&&!searchExpanded.has(g.id)){searchExpanded.add(g.id);adapter.toggle(g.id,true)}}
   else restoreSearch();
   const filtered=filterFadeChats(data,query);list.replaceChildren();
   list.append(row('新聊天','new',()=>{close();createChat()},'new'));
   function chat(c,scope=''){const b=row(c.title,'chat',()=>{close();switchChat(c.id)},'chat:'+scope+c.id);bindChatContextMenu(b,c.id);if(c.active)b.setAttribute('aria-current','page');appendFadeChatStatus(b,c);const item=document.createElement('div');item.className='chat-picker-chat';item.append(b);appendFadeChatActions(item,c,adapter);list.append(item)}
-  if(filtered.pinned.length){pinnedHeading();if(pinnedExpanded.codex)filtered.pinned.forEach(c=>chat(c,'pinned:'))}
-  if(!query||filtered.groups.length)sectionHeading('项目','projects',projectsExpanded);
-  for(const g of projectsExpanded.codex?filtered.groups:[]){
+  function pinnedList(){if(filtered.pinned.length){pinnedHeading();if(pinnedExpanded.codex)filtered.pinned.forEach(c=>chat(c,'pinned:'))}if(pinnedExpanded.codex)filtered.groups.filter(g=>g.sectionId==='pinned').forEach(project)}
+  function project(g){
    const b=row(g.title,'project',()=>{if(query)return;adapter.toggle(g.id,!g.expanded);adapter.refresh();render()},'project:'+g.id);
    b.setAttribute('aria-expanded',String(!!query||g.expanded));
-   const project=document.createElement('div');project.className='chat-picker-project';project.append(b);
+   const project=document.createElement('div');project.className='chat-picker-project'+(g.sectionId?.startsWith('custom:')?' chat-picker-nested-project':'');project.append(b);
    const menu=document.createElement('button');menu.type='button';menu.className='project-menu';menu.dataset.projectMenu=g.id;menu.dataset.pickerKey='menu:'+g.id;
    menu.title=g.title+' 的项目操作';menu.setAttribute('aria-label',menu.title);menu.setAttribute('aria-haspopup','menu');menu.setAttribute('aria-expanded','false');
    menu.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
@@ -76,8 +76,18 @@ function installChatPicker(adapter){
     if(g.moreLabel)list.append(row(g.moreLabel,'more',()=>{adapter.more(g.id);adapter.refresh();render()},'more:'+g.id));
    }
   }
-  if(filtered.recent.length){sectionHeading('最近','recent',recentExpanded);if(recentExpanded.codex)filtered.recent.forEach(c=>chat(c))}
-  if(query&&!filtered.pinned.length&&!filtered.groups.length&&!filtered.recent.length){const empty=document.createElement('div');empty.className='chat-picker-empty';empty.textContent='无匹配聊天';list.append(empty)}
+  function projectsList(){const groups=filtered.groups.filter(g=>!g.sectionId||g.sectionId==='threads');if(!query||groups.length)sectionHeading('项目','projects',projectsExpanded);if(projectsExpanded.codex)groups.forEach(project)}
+  function recentList(){if(filtered.recent.length){sectionHeading('最近','recent',recentExpanded);if(recentExpanded.codex)filtered.recent.forEach(c=>chat(c))}}
+  function customSection(s){
+   const group=document.createElement('div');group.className='chat-picker-section-actions';
+   const b=row(s.title,'section',()=>{adapter.toggleSection(s.id,!s.expanded);adapter.refresh();render()},'section:'+s.id);b.className+=' chat-picker-section-toggle native-section';b.setAttribute('aria-expanded',String(!!query||s.expanded));group.append(b);
+   const menu=document.createElement('button');menu.type='button';menu.className='project-menu';menu.textContent='⋯';menu.dataset.pickerKey='section-menu:'+s.id;menu.setAttribute('aria-label',s.title+' 的分区操作');menu.onclick=()=>{preserveForContextMenu(menu);openProjectMenu(s.id,menu)};group.append(menu);list.append(group);
+   if(query||s.expanded)for(const item of s.items){if(item.kind==='project')project(item.project);else chat(item.chat,s.id+':')}
+   if((query||s.expanded)&&s.moreLabel)list.append(row(s.moreLabel,'more',()=>{adapter.sectionMore(s.id);adapter.refresh();render()},'section-more:'+s.id));
+  }
+  const rendered=new Set();for(const s of data.sections??[]){if(rendered.has(s.id))continue;rendered.add(s.id);if(s.custom){const match=filtered.sections.find(x=>x.id===s.id);if(match)customSection(match)}else if(s.id==='pinned')pinnedList();else if(s.id==='threads')projectsList();else if(s.id==='chats')recentList()}
+  if(!rendered.has('pinned'))pinnedList();if(!rendered.has('threads'))projectsList();if(!rendered.has('chats'))recentList();
+  if(query&&!filtered.pinned.length&&!filtered.groups.length&&!filtered.recent.length&&!filtered.sections.length){const empty=document.createElement('div');empty.className='chat-picker-empty';empty.textContent='无匹配聊天';list.append(empty)}
  }
  async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){announce('聊天记录加载失败：'+e.message)}}
  function open(nextMode='codex'){

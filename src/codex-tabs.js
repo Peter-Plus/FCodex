@@ -34,15 +34,17 @@ function appendCodexTabStatus(doc,button,status){
  icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[kind]+'</svg>';button.append(icon);
 }
 function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
- const state=window.__fadeCodexTabs??={tabs:[],jobs:[]};let timer=0,dead=false,renderKey='',closingPath=null,closingKey=null,lastPath=null,pendingNativePath=null;
+ const state=window.__fadeCodexTabs??={tabs:[],jobs:[]};let timer=0,notificationTimer=0,dead=false,renderKey='',closingPath=null,closingKey=null,lastPath=null,pendingNativePath=null,lastHomeKey=null,replacementHome=null;
  const reorder=installFadeTabReorder(list,state.tabs,tab=>tab.path,sync);
  const router=()=>fadeNativeRouter(doc);
  const chats=()=>{const data=adapter.snapshot();return [...(data.pinned??[]),...data.recent,...data.groups.flatMap(g=>g.chats)]};
  function go(location){const r=router();if(!r)throw Error('未找到原生导航');r.navigator.push({pathname:location.pathname,search:location.search||''},location.state)}
- function activate(tab){try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){report(e.message)}}
+ function cancelNotification(){clearTimeout(notificationTimer);notificationTimer=0;pendingNativePath=null}
+ function activate(tab){cancelNotification();try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){report(e.message)}}
  function close(tab){
+  cancelNotification();
   const index=state.tabs.indexOf(tab);if(index<0)return;
-  if([tab.path,tab.nativePath].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
+  if([tab.path,tab.nativePath,tab.windowKey].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
   closingPath=tab.path;closingKey=router()?.location.key;state.tabs.splice(index,1);state.jobs.push({path:tab.path,id:tab.id,after:Date.now()+15000});sync();
  }
  function sync(){
@@ -57,12 +59,21 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
   // Route is authoritative: the sidebar may still mark the last Codex task active on GPT pages.
   if(closingPath&&(loc.pathname!==closingPath||loc.key!==closingKey))closingPath=null;
   const previousPath=lastPath;
+  const replacementReady=replacementHome&&(loc.pathname!==replacementHome.routePath||loc.key!==replacementHome.routeKey);
+  const sourceHome=replacementReady?replacementHome.path:previousPath==='/'?lastHomeKey:null;
+  lastHomeKey=loc.pathname==='/'?loc.state?.fadePaneHome??null:null;
   const arrived=lastPath!==null&&lastPath!==loc.pathname||pendingNativePath===loc.pathname;lastPath=loc.pathname;
   const routeId=decodeURIComponent(activePath.slice('/local/'.length));
   const matching=rows.find(c=>[routeId,'local:'+routeId].includes(c.row?.getAttribute('data-app-action-sidebar-thread-id'))||fadeCodexConversationId(c.row)===routeId);
   const draft=routeId.includes('client-new-thread:')||matching?.id?.includes('client-new-thread:');
   if(loc.pathname!==closingPath&&/^\/local\/[^/?#]+$/.test(loc.pathname)){
    let tab=state.tabs.find(t=>t.path===activePath);
+   const home=state.tabs.find(t=>t.path===sourceHome&&t.location?.pathname==='/');
+   if(home&&(!tab||replacementReady)){
+    if(tab&&tab!==home)state.tabs.splice(state.tabs.indexOf(home),1);
+    else {tab=home;tab.windowKey??=home.path;tab.path=activePath}
+   }
+   if(replacementReady)replacementHome=null;
    if(!tab){tab={path:activePath,title:'新聊天',location:{}};state.tabs.push(tab)}
    tab.pendingCreation=!!draft;tab.nativePath=loc.pathname;
    tab.location={pathname:activePath,search:loc.search,state:loc.state};
@@ -98,12 +109,32 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  }
  function schedule(){if(!timer&&!dead)timer=setTimeout(()=>{timer=0;sync()},100)}
  const observer=new MutationObserver(schedule);observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-app-shell-active-page','data-app-action-sidebar-thread-active','data-app-action-sidebar-thread-title']});
- // Native notification navigation remains owned by the client; reconcile only after it arrives.
- function nativeNavigation(event){const message=event.data;if(message?.type!=='navigate-to-route'||typeof message.path!=='string')return;const path=message.path.split(/[?#]/)[0];if(!/^\/local\/[^/]+$/.test(path))return;pendingNativePath=path;schedule()}
+ // Let native navigation resolve host/context first. Only rescue a verified local
+ // notification when the route has stayed unchanged; never override later input.
+ function nativeNavigation(event){
+  const message=event.data;if(message?.type!=='navigate-to-route'||typeof message.path!=='string')return;
+  cancelNotification();
+  const match=message.path.match(/^(\/local\/[^/?#]+)(\?[^#]*)?(#.*)?$/);if(!match)return;
+  const path=match[1];pendingNativePath=path;schedule();
+  const thread=message.notificationThread;let id;try{id=decodeURIComponent(path.slice(7))}catch{return}
+  if(thread?.hostId!=='local'||thread.conversationId!==id)return;
+  closingPath=null;closingKey=null;
+  const initial=router()?.location;if(!initial)return;
+  const initialPath=initial.pathname,initialKey=initial.key;
+  notificationTimer=setTimeout(()=>{
+   notificationTimer=0;if(dead)return;
+   const r=router(),loc=r?.location;if(!loc)return;
+   if(loc.pathname===path){sync();return}
+   if(loc.pathname!==initialPath||loc.key!==initialKey)return;
+   // Settings, onboarding and other special routes keep their native guards.
+   if(!/^\/local\/[^/]+$/.test(loc.pathname)&&loc.pathname!=='/')return;
+   try{r.navigator.push({pathname:path,search:match[2]||'',hash:match[3]||''},message.state);sync()}catch(e){report(e.message)}
+  },300);
+ }
  window.addEventListener?.('message',nativeNavigation);
  const interval=globalThis.setInterval(sync,1000);add.addEventListener('click',newChat);sync();
- const dispose=()=>{dead=true;reorder.destroy();window.removeEventListener?.('message',nativeNavigation);observer.disconnect();clearTimeout(timer);globalThis.clearInterval(interval);add.removeEventListener('click',newChat);list.replaceChildren()};
- Object.assign(dispose,{activate,close,sync,tabs:()=>state.tabs,addHome(key,homeState={}){const tab={path:key,title:'新聊天',location:{pathname:'/',search:'',state:{...homeState,sidebarProductMode:'codex',fadePaneHome:key}}};state.tabs.push(tab);activate(tab);return tab}});return dispose;
+ const dispose=()=>{dead=true;cancelNotification();reorder.destroy();window.removeEventListener?.('message',nativeNavigation);observer.disconnect();clearTimeout(timer);globalThis.clearInterval(interval);add.removeEventListener('click',newChat);list.replaceChildren()};
+ Object.assign(dispose,{activate,close,sync,replaceHome(tab){replacementHome=tab?.location?.pathname==='/'?{path:tab.path,routePath:router()?.location.pathname,routeKey:router()?.location.key}:null},tabs:()=>state.tabs,addHome(key,homeState={}){replacementHome=null;const tab={path:key,title:'新聊天',location:{pathname:'/',search:'',state:{...homeState,sidebarProductMode:'codex',fadePaneHome:key}}};state.tabs.push(tab);activate(tab);return tab}});return dispose;
 }
 
 

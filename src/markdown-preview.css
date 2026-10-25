@@ -1,0 +1,30 @@
+/* Native Markdown is an editable CodeMirror document, not rendered HTML.
+   Use its semantic decorations without replacing lines, widgets or selections. */
+@scope (html[data-fade-codex] :is([data-tab-id^="text-editor:"],[data-tab-id^="file:"]) .cm-editor:has(.cm-content[data-language="markdown"])) {
+ :scope{font-size:14px!important;color:var(--fc-fg)!important;background:transparent!important}
+ .cm-scroller{font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif!important;line-height:1.75!important;padding:30px max(22px,calc((100% - 720px)/2)) 80px!important;scrollbar-width:thin}
+ .cm-content[data-language="markdown"]{min-width:0!important;flex-shrink:1!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:normal!important;caret-color:var(--fc-accent)!important}
+ .cm-line{padding-inline:0!important}
+ .cm-line:has(>br:only-child){line-height:.8!important}
+ .file-editor-heading{font-family:inherit!important;font-weight:650!important;letter-spacing:-.025em;color:var(--fc-fg)!important;line-height:1.4}
+ .file-editor-heading-1{font-size:26px!important;font-weight:700!important}
+ .file-editor-heading-2{font-size:20px!important}
+ .file-editor-heading-3{font-size:17px!important}
+ :is(.file-editor-heading-4,.file-editor-heading-5,.file-editor-heading-6){font-size:14px!important;font-weight:650!important}
+ .cm-line:has(.file-editor-heading){padding-block:16px 5px!important}
+ .cm-line:first-child:has(.file-editor-heading){padding-top:0!important}
+ .cm-line:has(.file-editor-heading-1){padding-bottom:12px!important;border-bottom:1px solid var(--fc-line)}
+ .cm-line.cm-markdown-list-item{padding-inline-start:14px!important;line-height:1.8!important}
+ .cm-line.cm-markdown-blockquote{border-inline-start:3px solid color-mix(in srgb,var(--fc-accent) 50%,var(--fc-line))!important;padding:7px 14px!important;background:color-mix(in srgb,var(--fc-accent) 5%,transparent);color:var(--fc-muted)}
+ .cm-line.cm-markdown-horizontal-rule{background:linear-gradient(var(--fc-line),var(--fc-line)) center/100% 1px no-repeat!important}
+ .cm-line.cm-markdown-code-line{font-family:"Cascadia Code",Consolas,monospace!important;font-size:13px!important;line-height:1.65!important;padding-inline:14px!important;background:color-mix(in srgb,var(--fc-fg) 4%,var(--fc-file-body))!important}
+ .cm-line.cm-markdown-code-line-first{padding-top:12px!important;border-start-start-radius:10px!important;border-start-end-radius:10px!important}
+ .cm-line.cm-markdown-code-line-first[data-language]{padding-block:8px 4px!important}
+ .cm-markdown-code-line-first::after{font-size:11px!important;letter-spacing:.02em;color:var(--fc-muted)!important}
+ .cm-line.cm-markdown-code-line-last{padding-bottom:12px!important;border-end-start-radius:10px!important;border-end-end-radius:10px!important}
+ .cm-line.cm-markdown-table-row{border-inline:1px solid var(--fc-line);border-bottom:1px solid var(--fc-line);font-size:13px;line-height:1.65}
+ .cm-line.cm-markdown-table-header{border-top:1px solid var(--fc-line);background:color-mix(in srgb,var(--fc-fg) 5%,var(--fc-file-body));color:var(--fc-fg)}
+ .cm-markdown-table-cell{padding:10px 12px!important}
+ .cm-markdown-table-cell+.cm-markdown-table-cell{border-inline-start:1px solid var(--fc-line)}
+ .cm-content img:not(.cm-widgetBuffer){max-width:100%;height:auto;border-radius:8px}
+}

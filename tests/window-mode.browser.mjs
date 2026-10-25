@@ -112,6 +112,24 @@ try{
  assert.equal(await evaluate(`shadow.querySelectorAll('.fade-preview-pane').length`),1);
  assert.equal(await evaluate(`shadow.querySelectorAll('.fade-preview-pane [role=tab]').length`),2);
  assert.equal(await evaluate(`previewA!==previewB&&!document.querySelector('[data-fade-unified-preview]').hidden`),true);
+ await evaluate(`shadow.querySelector('.fade-preview-pane .fade-window-directory').click()`);
+ assert.equal(await evaluate(`shadow.querySelector('.fade-preview-directory').hidden`),false);
+ assert.equal(await evaluate(`shadow.querySelectorAll('.fade-preview-directory [role=menuitemradio]').length`),2);
+ assert.equal(await evaluate(`shadow.querySelector('.fade-preview-directory [aria-checked=true]').dataset.previewId`),await evaluate('previewB'));
+ await evaluate(`shadow.querySelector('.fade-preview-directory button').click()`);
+ assert.equal(await evaluate('bridge.active'),await evaluate('previewA'));
+ assert.equal(await evaluate(`shadow.querySelector('.fade-preview-directory').hidden`),true);
+ await evaluate(`shadow.querySelector('.fade-preview-pane .fade-window-directory').click();window.extraPreviews=[];for(let i=0;i<35;i++){const id='directory-extra-'+i;extraPreviews.push(id);bridge.mount(id);bridge.update(id,{title:'同名文件 / 长路径 / '+i,activate(){},close(){bridge.remove(id)}})}`);
+ assert.equal(await evaluate(`shadow.querySelectorAll('.fade-preview-directory button').length`),37,'open directory follows added previews');
+ assert.equal(await evaluate(`(()=>{const p=shadow.querySelector('.fade-preview-directory'),r=p.getBoundingClientRect();return p.scrollHeight>p.clientHeight&&r.right<=innerWidth&&r.bottom<=innerHeight})()`),true,'long directory scrolls within viewport');
+ await evaluate(`shadow.querySelector('.fade-preview-directory button').focus()`);
+ await command('Input.dispatchKeyEvent',{type:'keyDown',key:'End',code:'End'});
+ assert.equal(await evaluate(`shadow.activeElement.dataset.previewId`),'directory-extra-34');
+ await command('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+ assert.equal(await evaluate(`shadow.querySelector('.fade-preview-directory').hidden`),true);
+ assert.equal(await evaluate(`shadow.activeElement===shadow.querySelector('.fade-preview-pane .fade-window-directory')`),true);
+ await evaluate(`shadow.querySelector('.fade-preview-pane .fade-window-directory').click();document.body.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,composed:true}));for(const id of extraPreviews)bridge.remove(id)`);
+ assert.equal(await evaluate(`shadow.querySelector('.fade-preview-directory').hidden`),true,'outside click dismisses directory');
  await evaluate(`const previewStyle=document.createElement('style');previewStyle.textContent="[data-fade-unified-preview]{position:fixed;top:85px;height:calc(100vh - 85px);background:#24212b;color:#eee}[data-fade-unified-preview][hidden],.fade-preview-native-host[hidden]{display:none}.fade-preview-native-host{padding:20px}";document.head.append(previewStyle);bridge.mount(previewB).textContent='项目 B / readme · 原生内容挂载区域';`);
  const previewShot=await command('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.join(base,'preview.png'),Buffer.from(previewShot.data,'base64'));
  await evaluate(`previewStyle.remove()`);
@@ -148,6 +166,17 @@ try{
  assert.equal(await evaluate(`shadow.querySelectorAll('.fade-window-pane').length`),4);
  assert.equal(await evaluate(`mode.prepare('gpt','not-open')`),false);
  assert.equal(await evaluate(`messages.at(-1)`),'聊天窗口数量已满');
+ // Promotion keeps the same pane even if another pane receives focus before sync.
+ await evaluate(`window.promoted=codex[0];window.homeKey=promoted.path;window.originalPane=window.__fadePaneSlots[homeKey];shadow.querySelectorAll('.fade-window-pane')[0].querySelector('[role=tab]').click();promoted.windowKey=homeKey;promoted.path='/local/submitted';promoted.location={pathname:'/local/submitted',state:{}};go(promoted.location,{});shadow.querySelectorAll('.fade-window-pane')[3].querySelector('[role=tab]').click()`);
+ await wait(250);
+ assert.equal(await evaluate(`window.__fadePaneSlots['/local/submitted']`),await evaluate('originalPane'),'submitted tab stays in its original pane');
+ assert.equal(await evaluate(`codex.length`),4,'promotion does not manufacture an empty home');
+ // Opening a saved task already owned by another pane retires only the selected home.
+ await evaluate(`shadow.querySelectorAll('.fade-window-pane')[1].querySelector('[role=tab]').click();window.replacedHome=loc.state.fadePaneHome;window.otherHomes=codex.filter(t=>t.path!==replacedHome&&t!==promoted).map(t=>t.path);mode.prepare('codex','/local/submitted')`);
+ assert.equal(await evaluate(`codex.some(t=>t.path===replacedHome)`),false);
+ assert.equal(await evaluate(`otherHomes.every(key=>codex.some(t=>t.path===key))`),true,'unselected homes remain');
+ await evaluate(`shadow.querySelectorAll('.fade-window-pane')[1].querySelector('[role=tab]').click();window.selectedHome=loc.state.fadePaneHome;disposeCodexTabs.replaceHome=t=>window.replacementRequested=t.path;mode.prepare('codex','new-directory-task')`);
+ assert.equal(await evaluate('replacementRequested'),await evaluate('selectedHome'),'directory requests replacement of the active home in its destination pane');
  await evaluate(`mode.destroy();abort.abort()`);assert.equal(await evaluate(`document.querySelectorAll('style').length`),0);
  assert.equal(await evaluate(`legacyWorkspaceCalls.length`),0,'no legacy workspace requests or subscriptions, including teardown');
  // Use the generated shadow markup so the complete production cascade participates.

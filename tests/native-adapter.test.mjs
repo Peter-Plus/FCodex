@@ -5,7 +5,7 @@ import test from 'node:test';
 const code=fs.readFileSync(new URL('../src/native-adapter.js',import.meta.url),'utf8');
 function fixture(){
  const p='data-app-action-sidebar-';let projects=[],threads=[],actions=[],changes=[],callback,disconnected=false;
- const row=(attrs,container)=>({isConnected:true,disabled:false,textContent:'',getAttribute:k=>attrs[k]??null,closest:()=>container,click(){actions.push(this);if(p+'project-collapsed'in attrs)attrs[p+'project-collapsed']=attrs[p+'project-collapsed']==='true'?'false':'true'}});
+ const row=(attrs,container)=>({isConnected:true,disabled:false,textContent:'',getAttribute:k=>attrs[k]??null,closest:q=>q.includes('active-page')?null:container,click(){actions.push(this);if(p+'project-collapsed'in attrs)attrs[p+'project-collapsed']=attrs[p+'project-collapsed']==='true'?'false':'true'}});
  const container={querySelector:()=>null,querySelectorAll:()=>[],contains:r=>r.container===container};
  const project=row({[p+'project-id']:'project:A',[p+'project-label']:'A <img src=x>',[p+'project-collapsed']:'true'},container);projects.push(project);
  const makeThread=(host,id,parent=container)=>{const r=row({[p+'thread-id']:id,[p+'thread-host-id']:host,[p+'thread-kind']:'local',[p+'thread-title']:'Chat '+id,[p+'thread-active']:'true'},parent);r.container=parent;return r};
@@ -96,3 +96,4 @@ test('pinned chats have their own section and return to their project after unpi
  f.adapter.refresh();const changes=f.changes.length;pinned=false;f.adapter.refresh();assert.equal(f.changes.length,changes+1);
  data=f.adapter.snapshot();assert.equal(data.pinned.length,0);assert.equal(data.groups[0].chats.length,2);
 });
+

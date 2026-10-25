@@ -1,0 +1,55 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
+import {createTestArea,retireTestArea} from './work-area.mjs';
+import {command} from '../startup/session.mjs';
+const area=await createTestArea('preview-freshness'),profile=path.join(area,'browser');
+const child=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--no-first-run','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore',windowsHide:true});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));let target;
+try{
+ let port;for(let i=0;i<80;i++){try{port=Number((await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break}catch{await wait(100)}}assert.ok(port);
+ target=(await(await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t=>t.type==='page');
+ const evaluate=async expression=>(await command(target,'Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})).result.value;
+
+ const source=await fs.readFile(new URL('../src/preview-freshness.js',import.meta.url),'utf8');
+ const panel=await fs.readFile(new URL('../src/file-panel.js',import.meta.url),'utf8');
+ const css=await fs.readFile(new URL('../src/file-panel.css',import.meta.url),'utf8');
+ await evaluate(`document.documentElement.setAttribute('data-fade-codex','');document.body.innerHTML='<button role="tab" aria-controls="test-preview">a.js</button><div id="test-preview" data-tab-id="text-editor:local:C:/a.js"><header data-testid="viewer-header"></header><diffs-container></diffs-container></div>';const style=document.createElement('style');style.textContent=${JSON.stringify(css+'\n[data-tab-id]{position:fixed;left:100px;top:60px;width:500px;height:500px}')} ;document.head.append(style);window.pane=document.querySelector('[data-tab-id]');let requestSequence=0;crypto.randomUUID=()=>String(++requestSequence);window.confirm=()=>false;window.disk={content:'old',mtimeMs:1,sizeBytes:3};window.errors=[];window.missing=false;window.editor={options:{filePath:'/C:/a.js',hostId:'local'},state:{file:{contents:'old'}},savedContent:'old',baseMtimeMs:1,diskReadRevision:0,getDocument(){return this.reviewDiskSnapshot?{kind:'conflict',baseContent:this.savedContent}:{kind:'ready',baseContent:this.savedContent}},async readFile(){if(missing)throw Error('missing');return {...disk}},applyDiskSnapshot(data){this.reviewDiskSnapshot=data},resolveExternalChange(){this.state.file.contents=this.savedContent=this.reviewDiskSnapshot.content;this.baseMtimeMs=this.reviewDiskSnapshot.mtimeMs;this.reviewDiskSnapshot=null},emitState(){},async syncExternalChange(){this.applyDiskSnapshot(await this.readFile());this.emitState()}};pane.__reactFiber$test={memoizedState:{memoizedState:{current:editor}}};window.electronBridge={sendMessageFromView(m){queueMicrotask(()=>window.dispatchEvent(new MessageEvent('message',{data:{type:'fetch-response',requestId:m.requestId,responseType:missing?'error':'success',status:missing?404:200,bodyJsonString:JSON.stringify({isFile:true,mtimeMs:disk.mtimeMs,sizeBytes:disk.sizeBytes})}})))}};window.writes=0;window.alerts=[];window.alert=message=>alerts.push(message);window.input=document.createElement('textarea');input.style.cssText='position:absolute;top:60px';input.value='old';pane.append(input);editor.options.onStateChange=value=>{input.readOnly=value.isReadOnly;input.value=value.file.contents};editor.emitState=function(){this.options.onStateChange(this.state)};editor.updateContent=function(value){if(this.state.isReadOnly)return;this.state.file.contents=value;this.scheduleAutosave();this.emitState()};editor.scheduleAutosave=function(){throw Error('Native autosave must not run')};editor.clearAutosaveTimeout=()=>{};editor.saveUntilClean=function(){return this.save()};editor.save=async function(){if(this.baseMtimeMs!==disk.mtimeMs)return false;writes++;disk={content:this.state.file.contents,mtimeMs:disk.mtimeMs+1,sizeBytes:this.state.file.contents.length};this.savedContent=disk.content;this.baseMtimeMs=disk.mtimeMs;this.emitState();return true};input.addEventListener('input',()=>editor.updateContent(input.value));${panel};${source};window.disposeFreshness=installPreviewFreshness(document,message=>errors.push(message));`);
+ await wait(100);
+ const clickRefresh=async()=>{const r=await evaluate(`(()=>{const b=document.querySelector('.fade-preview-refresh'),r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===b,disabled:b.disabled}})()`);assert.equal(r.hit,true);assert.equal(r.disabled,false);await command(target,'Input.dispatchMouseEvent',{type:'mousePressed',x:r.x,y:r.y,button:'left',clickCount:1});await command(target,'Input.dispatchMouseEvent',{type:'mouseReleased',x:r.x,y:r.y,button:'left',clickCount:1})};
+ const status=()=>evaluate(`(()=>{const bar=document.querySelector('.fade-preview-freshness');return {text:bar.title,stale:bar.dataset.stale,contents:editor.state.file.contents,count:document.querySelectorAll('.fade-preview-freshness').length}})()`);
+ assert.equal((await status()).stale,'false',JSON.stringify(await status()));
+ assert.equal(await evaluate("document.querySelector('.fade-preview-refresh').hidden"),true);
+ assert.equal(await evaluate("document.querySelector('[role=tab] .fade-preview-freshness').style.display"),'none');
+ await evaluate("disk={content:'new',mtimeMs:2,sizeBytes:3};editor.syncExternalChange();window.dispatchEvent(new Event('focus'))");await wait(100);
+ let result=await status();assert.equal(result.stale,'true');assert.equal(result.contents,'old');assert.equal(result.count,1);
+ assert.equal(await evaluate("getComputedStyle(document.querySelector('.fade-preview-refresh')).opacity"),'0.6');
+ await clickRefresh();assert.equal(await evaluate("document.querySelector('.fade-preview-refresh').getAttribute('aria-busy')"),'true');assert.equal(await evaluate("getComputedStyle(document.querySelector('.fade-preview-refresh svg')).animationName"),'fade-preview-refresh-spin');await wait(500);result=await status();assert.equal(result.contents,'new');assert.equal(result.stale,'false');assert.equal(await evaluate("document.querySelector('.fade-preview-refresh').hidden"),true);
+ assert.equal(await evaluate('input.readOnly'),true);
+ await evaluate("document.querySelector('.fade-preview-lock').click();input.focus()");await wait(50);
+ assert.equal(await evaluate('input.readOnly'),false);
+ await command(target,'Input.insertText',{text:'typed'});await wait(100);
+ assert.equal(await evaluate('writes'),0);assert.equal(await evaluate("document.querySelector('.fade-preview-freshness').dataset.kind"),'dirty');
+ assert.equal(await evaluate("document.querySelector('.fade-preview-refresh').hidden"),true);
+ await evaluate("document.querySelector('.fade-preview-lock').click();input.focus()");await wait(50);assert.equal(await evaluate('input.readOnly'),true);
+ await command(target,'Input.dispatchKeyEvent',{type:'keyDown',key:'s',code:'KeyS',modifiers:2,windowsVirtualKeyCode:83});
+ await command(target,'Input.dispatchKeyEvent',{type:'keyUp',key:'s',code:'KeyS',modifiers:2,windowsVirtualKeyCode:83});await wait(100);
+ assert.equal(await evaluate('writes'),1);assert.equal(await evaluate("document.querySelector('.fade-preview-freshness').style.display"),'none');
+ await evaluate("disk={content:'newer',mtimeMs:3,sizeBytes:5};editor.state.file.contents='local edit';window.dispatchEvent(new Event('focus'))");await wait(100);
+ await evaluate("input.focus();input.dispatchEvent(new KeyboardEvent('keydown',{key:'s',ctrlKey:true,bubbles:true,composed:true,cancelable:true}))");await wait(100);assert.equal(await evaluate('writes'),1);assert.match(await evaluate('alerts.at(-1)'),/备份/);
+ await evaluate("document.querySelector('.fade-preview-refresh').click()");await wait(500);result=await status();assert.equal(result.contents,'local edit');assert.match(result.text,/本地编辑/);
+ await evaluate("missing=true;window.dispatchEvent(new Event('focus'))");await wait(100);assert.match((await status()).text,/无法读取|删除/);
+ // Match scoped preview keys inside the shadow strip, including identical filenames.
+ await evaluate(`disposeFreshness();const host=document.createElement('div');host.id='fade-codex-layer';document.body.append(host);window.tabRoot=host.attachShadow({mode:'open'});tabRoot.innerHTML='<div class="fade-gpt-tab" data-fade-preview-panel="other"><button>a.js</button></div><div class="fade-gpt-tab" data-fade-preview-panel="selected"><button>a.js</button><button class="fade-gpt-close">×</button></div>';pane.dataset.fadePreviewPanel='selected';document.querySelector('[role=tab]').hidden=true;window.disposeFreshness=installPreviewFreshness(document,message=>errors.push(message));`);
+ await wait(150);
+ assert.equal(await evaluate("tabRoot.querySelector('[data-fade-preview-panel=selected] .fade-preview-freshness').dataset.stale"),'true');
+ assert.equal(await evaluate("tabRoot.querySelector('[data-fade-preview-panel=other] .fade-preview-freshness')===null"),true);
+ await evaluate("tabRoot.querySelector('[data-fade-preview-panel=selected]').outerHTML='<div class=fade-gpt-tab data-fade-preview-panel=selected><button>a.js</button><button class=fade-gpt-close>×</button></div>'");await wait(200);
+ assert.equal(await evaluate("tabRoot.querySelectorAll('.fade-preview-freshness').length"),1);
+ await evaluate("window.testClosed=0;tabRoot.querySelector('[data-fade-preview-panel=selected] .fade-gpt-close').addEventListener('click',()=>window.testClosed++);tabRoot.querySelector('[data-fade-preview-panel=selected] .fade-gpt-close').click()");assert.equal(await evaluate('window.testClosed'),0);
+ assert.equal(await evaluate("document.querySelector('[role=tab] .fade-preview-freshness')===null"),true);
+ await evaluate('disposeFreshness()');assert.equal(await evaluate("tabRoot.querySelectorAll('.fade-preview-freshness').length"),0);assert.equal(await evaluate("document.querySelectorAll('.fade-preview-freshness').length"),0);
+ assert.equal(await evaluate("document.querySelectorAll('.fade-preview-refresh,.fade-preview-lock,.fade-preview-edit-actions').length"),0);
+ console.log('PASS: metadata change notice, explicit native refresh, dirty protection, missing file notice, disposal.');
+}finally{if(target)await command(target,'Browser.close').catch(()=>{});await retireTestArea(area,child)}

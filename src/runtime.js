@@ -1,7 +1,7 @@
 (function startFade(styleText=document.getElementById('fade-codex-style')?.textContent||'') {
  if(window.__fadeCodex)return;
  // Keep a fresh initializer, not the disposed runtime's listeners and state.
- window.__fadeResume=startFade.bind(null,styleText);
+ window.__fadeResume=()=>startFade(styleText);
  if(!document.getElementById('fade-codex-style')){const style=document.createElement('style');style.id='fade-codex-style';style.textContent=styleText;document.head.append(style)}
  window.__fadeClassicChrome?.destroy();
  const root=document.documentElement,abort=new AbortController(),signal=abort.signal;
@@ -19,13 +19,14 @@
  __NATIVE_THEME__
  const nativeTheme=createNativeThemeSync(window,()=>announce('窗口按钮主题同步失败，请重启 Codex 后重试'));
  __HEADER__
+ const disposeTabWheel=installFadeTabWheel(shadow,window);
  const disposeHeader=installCompactHeader();
  let config={light:root.dataset.theme==='light'};try{Object.assign(config,JSON.parse(localStorage.getItem('fade-codex-v1')||'{}'))}catch{}
  // Native appearance is authoritative; saved Fade config is only a fallback.
  if(['light','dark'].includes(root.dataset.theme))config.light=root.dataset.theme==='light';
  root.setAttribute('data-fade-codex','');
  __THEME_BRIDGE__
- let navOpen=false,toastTimer,lastScroll=0,returnFocus=null,inerted=[],groups=[],recent=[],pinned=[],expanded={recent:false,pinned:true};
+ let navOpen=false,toastTimer,lastScroll=0,returnFocus=null,inerted=[],groups=[],recent=[],pinned=[],sections=[],expanded={recent:false,pinned:true};
  const savedExpanded=(()=>{try{return JSON.parse(localStorage.getItem('fade-codex-orb-expanded-v2')||'{}')||{}}catch{return {}}})();
  expanded.recent=savedExpanded.recent===true;
  function persist(){try{localStorage.setItem('fade-codex-orb-expanded-v2',JSON.stringify(expanded))}catch{}}
@@ -38,6 +39,7 @@
  const disposeConversation=installConversationSurface(document);
  __FILE_PANEL__
  const disposeFilePanel=installFilePanel(document,announce);
+ const disposePreviewFreshness=installPreviewFreshness(document,announce);
  __MESSAGE_RAIL__
  const disposeMessageRail=installMessageRail(document);
  __ADAPTER__
@@ -55,7 +57,7 @@
  syncSettingsNavigation();
  let chatPicker=null;
  const adapter=createNativeAdapter(document,data=>{
-  groups=data.groups;recent=data.recent;pinned=data.pinned??[];
+  groups=data.groups;recent=data.recent;pinned=data.pinned??[];sections=data.sections??[];for(const section of sections)if(section.custom)expanded[section.id]=section.expanded;
   if(data.completedIds?.length){
    if(!reduceMotion.matches){shakeCore();wakeParticles()}
   }
@@ -66,13 +68,6 @@
   chatPicker?.refresh();
  });
  const headerTabsScroll=$('#headerTabsScroll');
- on(headerTabsScroll,'wheel',event=>{
-  if(event.ctrlKey||headerTabsScroll.scrollWidth<=headerTabsScroll.clientWidth)return;
-  const delta=Math.abs(event.deltaX)>Math.abs(event.deltaY)?event.deltaX:event.deltaY;
-  if(!delta)return;
-  event.preventDefault();event.stopPropagation();
-  headerTabsScroll.scrollLeft+=delta*(event.deltaMode===1?20:event.deltaMode===2?headerTabsScroll.clientWidth:1);
- },{passive:false});
  __GPT_TABS__
  const disposeGptTabs=installGptTabs(document,$('#gptTabs'),$('#gptAdd'),announce,{split:true,beforeNew:()=>!windowMode.enabled||!windowMode.newChat('gpt'),beforeOpen:id=>windowMode.prepare('gpt',id),bindContextMenu:(row,id)=>bindChatContextMenu(row,id,(id,x,y)=>disposeGptTabs.contextMenu(id,x,y))});
  const disposeCodexTabs=installCodexTabs(document,$('#codexTabs'),$('#codexAdd'),adapter,announce,()=>{const data=adapter.snapshot();const project=data.groups.find(g=>g.chats.some(c=>c.active));createChat(project?.id)},{bindContextMenu:bindChatContextMenu,viewport:headerTabsScroll,onArrival(){chatPicker?.close();closeNav(false)}});
@@ -82,6 +77,9 @@
  chatPicker=installChatPicker(adapter);
  const orbUsage=installOrbUsage(disposeGptTabs);
  const composerAutohide=installComposerAutohide();
+ const wslImagePaths=installWslImagePaths();
+ const previewCodeWrap=installPreviewCodeWrap(document);
+ const disposePreviewScrollbar=installPreviewScrollbar(document);
  const disposePaperSurface=installPaperSurface(document);
  const backgroundSettings=installBackgroundSettings({doc:document,shadow,announce});
  const disposeConversationTitle=installConversationTitle();
@@ -124,7 +122,7 @@
   for(const [el,style]of state.styles){if(style===null)el.removeAttribute('style');else el.setAttribute('style',style)}
   root.removeAttribute('data-fade-project-menu');
   if(navOpen)syncNativeFocus();
-  const buttons=$('[data-project-menu]').filter(el=>el.dataset.projectMenu===state.id);buttons.forEach(button=>button.setAttribute('aria-expanded','false'));
+  const buttons=$$('[data-project-menu]').filter(el=>el.dataset.projectMenu===state.id);buttons.forEach(button=>button.setAttribute('aria-expanded','false'));
   if(restoreFocus){const button=state.button.isConnected?state.button:buttons.find(b=>b.getBoundingClientRect().width);button?.focus({preventScroll:true})}
  }
  function dismissProjectMenu(){
@@ -134,7 +132,7 @@
  }
  function openProjectMenu(id,button){
   if(projectMenu){dismissProjectMenu();return}
-  const native=adapter.snapshot().groups.find(g=>g.id===id)?.row.querySelector('button[aria-haspopup="menu"]');
+  const native=id.startsWith('custom:')?adapter.sectionMenu(id):adapter.snapshot().groups.find(g=>g.id===id)?.row.querySelector('button[aria-haspopup="menu"]');
   if(!native||native.disabled){actionFailed();return}
   const anchor=button.getBoundingClientRect();
   unlock();root.setAttribute('data-fade-project-menu','');
@@ -158,19 +156,21 @@
  on(document,'click',event=>{if(projectMenu&&event.target.closest?.('[role="menuitem"]:not([aria-haspopup="menu"]),[role="menuitemcheckbox"],[role="menuitemradio"]')){finishProjectMenu()}},{capture:true});
  on(window,'resize',dismissProjectMenu);
  function projectRow(g){
-  const row=document.createElement('div');row.className='nav-row project project-actions';
+  const row=document.createElement('div');row.className='nav-row project project-actions'+(g.custom?' native-section':'');
   const main=document.createElement('button');main.type='button';main.className='project-main';main.dataset.group=g.id;
   main.setAttribute('aria-expanded',String(expanded[g.id]));main.setAttribute('aria-label',(expanded[g.id]?'收起':'展开')+g.title);
   main.innerHTML=(g.id==='recent'?'<span class="project-letter">◷</span>':'')+'<span class="row-title"></span><span class="row-meta"></span>';
   main.querySelector('.row-title').textContent=g.title;
-  const completed=new Set(g.chats.filter(c=>c.status?.completionPending).map(c=>c.id)).size;
-  main.querySelector('.row-meta').textContent=completed?'✓ '+completed:expanded[g.id]?g.chats.length:'';
+  const displayChats=g.custom?g.items.flatMap(i=>i.kind==='project'?i.project.chats:[i.chat]):g.chats;
+  const completed=new Set(displayChats.filter(c=>c.status?.completionPending).map(c=>c.id)).size;
+  main.querySelector('.row-meta').textContent=completed?'✓ '+completed:expanded[g.id]?displayChats.length:'';
   if(completed)row.dataset.completionPending='true';row.onclick=()=>toggleGroup(g.id);row.append(main);
   if(g.id!=='recent'&&g.id!=='pinned'){
    const menu=document.createElement('button');menu.type='button';menu.className='project-menu';menu.dataset.projectMenu=g.id;
-   menu.title=g.title+' 的项目操作';menu.setAttribute('aria-label',menu.title);menu.setAttribute('aria-haspopup','menu');menu.setAttribute('aria-expanded',String(projectMenu?.id===g.id));
+   menu.title=g.title+(g.custom?' 的分区操作':' 的项目操作');menu.setAttribute('aria-label',menu.title);menu.setAttribute('aria-haspopup','menu');menu.setAttribute('aria-expanded',String(projectMenu?.id===g.id));
    menu.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
    menu.onclick=e=>{e.stopPropagation();openProjectMenu(g.id,menu)};row.append(menu);
+   if(g.custom)return addCardSurface(row);
    const add=document.createElement('button');add.type='button';add.className='project-new-chat';add.dataset.newProject=g.id;
    add.title='在 '+g.title+' 中新建聊天';add.setAttribute('aria-label',add.title);
    add.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
@@ -181,11 +181,15 @@
  function chatRow(chat){const row=document.createElement('div');row.className='nav-row chat'+(chat.active?' selected':'');row.innerHTML='<button class="row-main"><span class="chat-dot"></span><span class="row-title"></span></button>';row.querySelector('.row-title').textContent=chat.title;const b=row.querySelector('button');b.onclick=()=>switchChat(chat.id);if(chat.active)b.setAttribute('aria-current','page');b.dataset.chat=chat.id;appendFadeChatStatus(b,chat);appendFadeChatActions(row,chat,adapter);bindChatContextMenu(row,chat.id);return addCardSurface(row)}
  function renderRows(){
   cancelReveal();const list=$('#arcList'),scroll=$('#arcViewport').scrollTop,focused=shadow.activeElement,focusKey=focused?.dataset.group,chatKey=focused?.dataset.chat,newProjectKey=focused?.dataset.newProject;
-  list.replaceChildren();for(const g of [...(pinned.length?[{id:'pinned',title:'置顶',chats:pinned}]:[]),...groups,{id:'recent',title:'最近',chats:recent}]){list.append(projectRow(g));if(expanded[g.id]){for(const chat of g.chats)list.append(chatRow(chat));if(g.moreLabel){const more=document.createElement('button');more.className='nav-row project';more.textContent=g.moreLabel;more.onclick=()=>adapter.more(g.id);list.append(addCardSurface(more))}}}
+  list.replaceChildren();
+  function group(g){list.append(projectRow(g));if(expanded[g.id]){for(const chat of g.chats)list.append(chatRow(chat));if(g.moreLabel){const more=document.createElement('button');more.className='nav-row project';const label=document.createElement('span');label.className='row-title';label.textContent=g.moreLabel;more.append(label);more.onclick=()=>adapter.more(g.id);list.append(addCardSurface(more))}}}
+  const rendered=new Set();function builtin(id){if(id==='pinned'&&pinned.length)group({id:'pinned',title:'置顶',chats:pinned});if(id==='pinned')groups.filter(g=>g.sectionId==='pinned').forEach(group);if(id==='threads')groups.filter(g=>!g.sectionId||g.sectionId==='threads').forEach(group);if(id==='chats')group({id:'recent',title:'最近',chats:recent})}
+  for(const section of sections){if(rendered.has(section.id))continue;rendered.add(section.id);if(!section.custom){builtin(section.id);continue}list.append(projectRow(section));if(section.expanded)for(const item of section.items){if(item.kind==='project')group(item.project);else list.append(chatRow(item.chat))}if(section.expanded&&section.moreLabel){const more=document.createElement('button');more.type='button';more.className='nav-row project';const label=document.createElement('span');label.className='row-title';label.textContent=section.moreLabel;more.append(label);more.onclick=()=>adapter.sectionMore(section.id);list.append(addCardSurface(more))}}
+  for(const id of ['pinned','threads','chats'])if(!rendered.has(id))builtin(id);
   $('#arcViewport').scrollTop=scroll;layoutArc();
   if(focusKey||chatKey||newProjectKey)$$('[data-group],[data-chat],[data-new-project]').find(el=>newProjectKey?el.dataset.newProject===newProjectKey:focusKey?el.dataset.group===focusKey:el.dataset.chat===chatKey)?.focus({preventScroll:true});
  }
- function toggleGroup(id){if(id==='recent'||id==='pinned'){expanded[id]=!expanded[id];persist();renderRows();return}const next=!expanded[id];if(adapter.toggle(id,next)){expanded[id]=next;persist();adapter.refresh()}else actionFailed()}
+ function toggleGroup(id){if(id.startsWith('custom:')){if(adapter.toggleSection(id,!expanded[id]))adapter.refresh();else actionFailed();return}if(id==='recent'||id==='pinned'){expanded[id]=!expanded[id];persist();renderRows();return}const next=!expanded[id];if(adapter.toggle(id,next)){expanded[id]=next;persist();adapter.refresh()}else actionFailed()}
  __ARC__
  __MASK__
  function lock(){inerted=[...document.body.children].filter(el=>el!==host&&!el.inert);for(const el of inerted)el.inert=true}
@@ -254,8 +258,12 @@
   return disposeHomeOrb.startupTarget();
  }
  on(window,'resize',()=>{updateFanMask();layoutArc();resizeCanvas()});
- window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
-  if(disposed)return;particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();themeController.destroy();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
+ window.__fadeCodex={version:'2.0.0',prepareStartupHome,setStartupCovered,status:()=>({phase:'live',wslImageAttachments:{enabled:wslImagePaths.enabled,ready:wslImagePaths.ready},navigation:navOpen,projects:groups.length,chats:groups.reduce((n,g)=>n+g.chats.length,recent.length+pinned.length+sections.reduce((n,s)=>n+s.chats.length,0)),adapterReady:root.hasAttribute('data-fade-shell'),theme:config.light?'light':'dark'}),destroy(){
+  if(disposed)return;
+  // Preserve live stylesheet updates when switching through classic mode.
+  // A bound startup string would resurrect stale preview clipping on return.
+  styleText=document.getElementById('fade-codex-style')?.textContent??styleText;
+  particleVisibilityObserver.disconnect();dismissProjectMenu();disposed=true;windowMode.destroy();abort.abort();settingsObserver.disconnect();themeController.destroy();nativeTheme.destroy();chatPicker.destroy();historyCards.destroy();disposeCodexTabs();disposeGptTabs();adapter.destroy();disposeHeader();disposeTabWheel();disposeFullscreen();disposeFadeSettings();orbUsage.destroy();composerAutohide.destroy();wslImagePaths.destroy();previewCodeWrap.destroy();disposePreviewScrollbar();disposePaperSurface();backgroundSettings.destroy();disposeConversationTitle();disposeConversation();disposeRailHistory();disposePreviewFreshness();disposeFilePanel();disposeMessageRail();timeouts.forEach(window.clearTimeout);frames.forEach(window.cancelAnimationFrame);clearInterval(editorStyleTimer);editorStyle.remove();unlock();
   for(const[n,t]of tokens){if(t.value)root.style.setProperty(n,t.value,t.priority);else root.style.removeProperty(n)}
   for(const[n,v]of originalAttrs){if(v===null)root.removeAttribute(n);else root.setAttribute(n,v)}
   for(const[el,state]of nativeFocus){el.inert=state.inert;if(state.aria===null)el.removeAttribute('aria-hidden');else el.setAttribute('aria-hidden',state.aria)}
