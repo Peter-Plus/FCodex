@@ -214,9 +214,16 @@ function installGptTabs(doc,list,add,report,options={}){
    const links=[...doc.querySelectorAll('link[href]')],initial=links.find(l=>/app-initial-.*\.js$/.test(l.href)),shared=links.find(l=>/app-shared-.*\.js$/.test(l.href));
    if(!initial||!shared)throw Error('原生模块尚未加载');
    module=await import(initial.href);const common=await import(shared.href);
+   if(module.fadeNativeCompat){
+    const primary=links.find(l=>/app-primary-.*\.js$/.test(l.href));
+    if(!primary)throw Error('原生主界面模块尚未加载');
+    const nativePrimary=await import(primary.href);
+    const compat=module.fadeNativeCompat,primaryCompat=nativePrimary.fadeNativePrimaryCompat;
+    module=new Proxy(module,{get(target,key){return key in compat?compat[key]:key in primaryCompat?primaryCompat[key]:target[key]}});
+   }
    if(!module.fadeStudyChat||!module.fadeStudyProduct)throw Error('请通过 Fade Codex 启动适配后的客户端');
    const candidates=[...doc.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().width);
-   for(const b of candidates){let f=b[Object.keys(b).find(k=>k.startsWith('__reactFiber$'))];for(let depth=0;f&&depth<40;depth++,f=f.return)for(let h=f.memoizedState;h&&typeof h==='object';h=h.next){const candidate=h.memoizedState?.current;if(candidate?.scope===common.Cot&&typeof candidate.get==='function'){scope=candidate;break}}if(scope)break}
+   for(const b of candidates){let f=b[Object.keys(b).find(k=>k.startsWith('__reactFiber$'))];for(let depth=0;f&&depth<40;depth++,f=f.return)for(let h=f.memoizedState;h&&typeof h==='object';h=h.next){const candidate=h.memoizedState?.current;if(candidate?.scope===(module.fadeNativeAppScope??common.Cot)&&typeof candidate.get==='function'){scope=candidate;break}}if(scope)break}
    if(!scope)throw Error('未找到原生聊天作用域');
    if(disposed)return;
    cacheRelease=installChatCacheRelease(doc,scope,module,state,job=>state.tabs.some(t=>t.id===job.draftKey||job.ids.includes(resolved(t))),message=>{if(releaseAfterDispose)console.warn(message);else report(message)});

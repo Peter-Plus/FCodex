@@ -11,11 +11,14 @@ import {patchWindowPreview,patchPreviewScope} from './window-preview-patch.mjs';
 import {patchWindowModePages,assertWindowModeAsset} from './window-mode-patch.mjs';
 import {patchWindowComposerFocus} from './window-focus-patch.mjs';
 import {patchPageHomeHooks,patchPageHomeConsumers} from './window-home-patch.mjs';
-import {supportedArchiveHash} from './runtime-fallback.mjs';
+import {supportedArchiveHashes} from './runtime-fallback.mjs';
+import {currentArchiveHash,scopeBindings,patchInitial261021,patchPrimary261021,patchEditor261021} from './client-261021-patch.mjs';
 const source=process.argv[2];if(!source)throw Error('Pass the official app directory');
 const verifyOnly=process.argv.includes('--verify-only');
 const diagnostic=process.argv.includes('--diagnostic-hold');
-const runtimeRoot=diagnostic?'.work/active/diagnostic-runtime':'.fade-runtime-isolated';
+const outputIndex=process.argv.indexOf('--runtime-root');
+if(outputIndex>=0&&!process.argv[outputIndex+1])throw Error('Missing --runtime-root directory');
+const runtimeRoot=outputIndex>=0?process.argv[outputIndex+1]:diagnostic?'.work/active/diagnostic-runtime':'.fade-runtime-isolated';
 const buildPath=path.join(runtimeRoot,'build.json');
 const destination=path.resolve(runtimeRoot,'app');
 if(path.resolve(source)===destination)throw Error('Source must be separate');
@@ -23,7 +26,8 @@ const archive=path.join(source,'resources/app.asar'),fd=await fs.open(archive,'r
 const prefix=Buffer.alloc(16);await fd.read(prefix,0,16,0);const header=Buffer.alloc(prefix.readUInt32LE(12));await fd.read(header,0,header.length,16);
 const tree=JSON.parse(header),offset=8+prefix.readUInt32LE(4),size=(await fd.stat()).size;
 const hash=b=>createHash('sha256').update(b).digest('hex');
-if(hash(header)!==supportedArchiveHash){
+const modern=hash(header)===currentArchiveHash;
+if(!supportedArchiveHashes.has(hash(header))){
  console.log('This Codex build has not been validated. Attempting to build Fade against the installed client; compatibility is not guaranteed.');
  console.log('Installed ASAR header SHA-256: '+hash(header)+'. Official files will not be modified.');
 }
@@ -32,7 +36,7 @@ let existing;try{existing=JSON.parse(await fs.readFile(buildPath,'utf8'))}catch{
 const mediaManifest=await fs.readFile('Arts/startup-loop.json','utf8');
 const mediaRevision=hash(Buffer.concat([Buffer.from(mediaManifest),await fs.readFile('Arts/fade-codex-icon.png'),await fs.readFile('startup/branding-patch.mjs')]));
 const diagnosticRevision=diagnostic?hash(await fs.readFile('startup/diagnostic-gate.mjs')):undefined;
-const viewRevision=hash(Buffer.concat(await Promise.all(['startup/window-home-patch.mjs','startup/window-focus-patch.mjs','startup/window-preview-patch.mjs','startup/build-runtime.mjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
+const viewRevision=hash(Buffer.concat(await Promise.all(['startup/client-261021-patch.mjs','startup/window-home-patch.mjs','startup/window-focus-patch.mjs','startup/window-preview-patch.mjs','startup/build-runtime.mjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
 let cacheValid=false;
 if(existing?.oldHash===hash(header)&&existing?.revision===6&&existing?.viewRevision===viewRevision&&existing?.mediaRevision===mediaRevision&&existing?.diagnosticRevision===diagnosticRevision){
  let cached;
@@ -50,14 +54,15 @@ async function read(p){const n=entry(p),b=Buffer.alloc(n.size);await fd.read(b,0
 const mainName=Object.keys(entry('.vite/build').files).find(n=>/^main-.*\.js$/.test(n));
 let main=await read('.vite/build/'+mainName);
 main=patchQuitGuard(patchMainBranding(main));
-const needle='z=new D.BrowserWindow(R);';
+const electron=main.includes('z=new O.BrowserWindow(R);')?'O':'D';
+const needle=`z=new ${electron}.BrowserWindow(R);`;
 if(main.split(needle).length!==2)throw Error('Unsupported window constructor: refusing patch');
-main=main.replace(needle,'z=new D.BrowserWindow(d===`primary`?{...R,frame:!1,titleBarOverlay:!1,fullscreen:process.env.FADE_START_FULLSCREEN===`1`}:R);if(d===`primary`)fadeRegisterWindow(z);');
+main=main.replace(needle,`z=new ${electron}.BrowserWindow(d===\`primary\`?{...R,frame:!1,titleBarOverlay:!1,fullscreen:process.env.FADE_START_FULLSCREEN===\`1\`}:R);if(d===\`primary\`)fadeRegisterWindow(z);`);
 // Restoring maximization after construction overrides the fullscreen geometry on Windows.
 // Keep the saved bounds, but let explicit startup fullscreen take precedence.
-const restoreMaximized='k=C?.isMaximized===!0';
+const restoreMaximized=electron==='O'?'k=S?.isMaximized===!0':'k=C?.isMaximized===!0';
 if(main.split(restoreMaximized).length!==2)throw Error('Unsupported maximization restore: refusing patch');
-main=main.replace(restoreMaximized,'k=C?.isMaximized===!0&&!(d===`primary`&&process.env.FADE_START_FULLSCREEN===`1`)');
+main=main.replace(restoreMaximized,restoreMaximized+'&&!(d===`primary`&&process.env.FADE_START_FULLSCREEN===`1`)');
 main=(await fs.readFile('startup/quit-policy.cjs','utf8'))+'\n'+(await fs.readFile('startup/custom-window-main.cjs','utf8'))+'\n'+(await fs.readFile('startup/isolated-startup-main.cjs','utf8'))+'\n'+main;
 const preload=await read('.vite/build/preload.js')+'\n'+await fs.readFile('startup/custom-window-preload.cjs','utf8');
 const files=new Map([['.vite/build/'+mainName,Buffer.from(main)],['.vite/build/preload.js',Buffer.from(preload)]]);
@@ -87,10 +92,17 @@ for(const [name,local,digest]of [['fade-intro.mp4','Arts/MilkDragon1.mp4',mediaI
 function replaceOnce(s,a,b){if(s.split(a).length!==2)throw Error('Patch mismatch: '+a.slice(0,80));return s.replace(a,b)}
 const assets=entry('webview/assets').files;
 const sharedName=Object.keys(assets).find(n=>/^app-shared-.*\.js$/.test(n));
-files.set('webview/assets/'+sharedName,Buffer.from(patchPreviewScope(await read('webview/assets/'+sharedName))));
+files.set('webview/assets/'+sharedName,Buffer.from(patchPreviewScope(await read('webview/assets/'+sharedName),modern?scopeBindings:undefined)));
 const primaryName=Object.keys(assets).find(n=>/^app-primary-.*\.js$/.test(n));
 const initialName=Object.keys(assets).find(n=>/^app-initial-.*\.js$/.test(n));
 let initial=await read('webview/assets/'+initialName);
+if(modern){
+ files.set('webview/assets/'+initialName,Buffer.from(patchWindowComposerFocus(patchInitial261021(initial))));
+ files.set('webview/assets/'+primaryName,Buffer.from(patchPrimary261021(await read('webview/assets/'+primaryName))));
+ const editorName=Object.keys(assets).filter(n=>/^pierre-file-editor-[a-f0-9]+\.js$/.test(n));
+ if(editorName.length!==1)throw Error('Missing or ambiguous native text editor');
+ files.set('webview/assets/'+editorName[0],Buffer.from(patchEditor261021(await read('webview/assets/'+editorName[0]))));
+}else{
 initial=replaceOnce(initial,'function gqt(e,t){t!==`codex`&&oy(e,t),XKt(e,t===`codex`?hKt:$v)}','function gqt(e,t){}');
 initial=replaceOnce(initial,'var yqt,bqt,xqt,','var fadeStudyChat,fadeStudyProduct,yqt,bqt,xqt,');
 initial=replaceOnce(initial,'yqt=`home-composer-mode-v1`,','fadeStudyChat=Y(U,({get:e})=>{let t=e(ch);return t?.state?.fadeChat===!0||t!=null&&Zy(t).routeKind===`chatgpt-thread`}),fadeStudyProduct=Y(U,({get:e})=>e(fadeStudyChat)?`work`:`codex`),yqt=`home-composer-mode-v1`,');
@@ -112,6 +124,10 @@ const primaryPath='webview/assets/'+primaryName;
 files.set(primaryPath,Buffer.from(patchWindowModePages(files.get(primaryPath)?.toString()??await read(primaryPath))));
 assertWindowModeAsset(files.get(primaryPath).toString());
 if(!files.get('webview/assets/'+homeName).toString().includes('fadeStudyProduct as Yy'))throw Error('Final asset lost GPT home patch');
+}
+// Validate the executable before any runtime writes, including preflight runs.
+const exe=await fs.readFile(path.join(source,'ChatGPT.exe')),oldHash=hash(header),position=exe.indexOf(oldHash);
+if(position<0||exe.indexOf(oldHash,position+1)!==-1)throw Error('Expected unique embedded ASAR digest');
 if(verifyOnly){
  const {spawnSync}=await import('node:child_process');
  for(const [name,data]of files){if(!/\.(?:js|cjs)$/.test(name))continue;const checked=spawnSync(process.execPath,['--input-type=module','--check'],{input:data,encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});if(checked.status!==0)throw Error('Patched syntax check failed: '+name+'\n'+checked.stderr)}
@@ -125,8 +141,7 @@ await fs.cp(source,destination,{recursive:true,filter:p=>p!==archive,force:true}
 const json=Buffer.from(JSON.stringify(tree)),padded=Math.ceil(json.length/4)*4,pre=Buffer.alloc(16+padded);pre.writeUInt32LE(4,0);pre.writeUInt32LE(8+padded,4);pre.writeUInt32LE(4+padded,8);pre.writeUInt32LE(json.length,12);json.copy(pre,16);
 const output=path.join(destination,'resources/app.asar');await fs.writeFile(output,pre);await pipeline(createReadStream(archive,{start:offset}),createWriteStream(output,{flags:'a'}));for(const data of files.values())await fs.appendFile(output,data);await fd.close();
 // Update the copied EXE's exact ASAR-header digest; keep integrity validation on.
-const exe=await fs.readFile(path.join(source,'ChatGPT.exe')),oldHash=hash(header),newHash=hash(json),position=exe.indexOf(oldHash);
-if(position<0||exe.indexOf(oldHash,position+1)!==-1)throw Error('Expected unique embedded ASAR digest');
+const newHash=hash(json);
 exe.write(newHash,position,'ascii');await fs.writeFile(path.join(destination,'ChatGPT.exe'),exe);
 await fs.writeFile(buildPath,JSON.stringify({revision:6,viewRevision,mediaRevision,diagnosticRevision,source,destination,oldHash,newHash,files:[...files.keys()]},null,2));
 console.log('Fade runtime built:',destination);

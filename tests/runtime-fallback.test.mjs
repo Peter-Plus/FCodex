@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createTestArea,retireTestArea} from './work-area.mjs';
-import {supportedArchiveHash,verifyRuntimeFallback} from '../startup/runtime-fallback.mjs';
+import {supportedArchiveHash,supportedArchiveHashes,verifyRuntimeFallback} from '../startup/runtime-fallback.mjs';
+import {currentArchiveHash} from '../startup/client-261021-patch.mjs';
 const hash=data=>createHash('sha256').update(data).digest('hex');
 
 test('fallback accepts a complete old build and rejects damaged or unsupported copies',async()=>{
@@ -22,6 +23,9 @@ test('fallback accepts a complete old build and rejects damaged or unsupported c
   const build={revision:6,oldHash:supportedArchiveHash,newHash:hash(header),destination:app,source:'supported-client',files:['main.js']};
   async function reset(){await fs.writeFile(path.join(root,'build.json'),JSON.stringify(build));await fs.writeFile(path.join(resources,'app.asar'),archive);await fs.writeFile(path.join(resources,'app.asar.unpacked/native.node'),native);await fs.writeFile(path.join(app,'ChatGPT.exe'),exe)}
   await reset();assert.equal((await verifyRuntimeFallback(root)).files,2);
+  assert.ok(supportedArchiveHashes.has(currentArchiveHash));
+  await fs.writeFile(path.join(root,'build.json'),JSON.stringify({...build,oldHash:currentArchiveHash}));
+  assert.equal((await verifyRuntimeFallback(root)).files,2);
   const corrupt=Buffer.from(archive);corrupt[corrupt.length-1]^=1;await fs.writeFile(path.join(resources,'app.asar'),corrupt);await assert.rejects(verifyRuntimeFallback(root),/file integrity mismatch/);
   await reset();await fs.writeFile(path.join(resources,'app.asar.unpacked/native.node'),Buffer.alloc(native.length));await assert.rejects(verifyRuntimeFallback(root),/file integrity mismatch/);
   await reset();await fs.writeFile(path.join(app,'ChatGPT.exe'),'wrong executable');await assert.rejects(verifyRuntimeFallback(root),/executable ASAR digest mismatch/);

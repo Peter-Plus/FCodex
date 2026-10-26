@@ -4,13 +4,14 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 
 export const supportedArchiveHash='beb6d4c814d5ab5691135d8c6c1ba77834de0476cf049f2bb7b3e182928c822c';
+export const supportedArchiveHashes=new Set([supportedArchiveHash,'5bd1f1afeb64772e9dd2bb20c1d7aee48591e8b5ea15e626c936abcfda7cb785']);
 const digest=data=>createHash('sha256').update(data).digest('hex');
 
 // Recovery accepts only a completed, previously supported build with intact files.
 export async function verifyRuntimeFallback(runtimeRoot){
  const destination=path.resolve(runtimeRoot,'app');
  const build=JSON.parse(await fs.readFile(path.join(runtimeRoot,'build.json'),'utf8'));
- if(build.revision!==6||build.oldHash!==supportedArchiveHash||build.diagnosticRevision||path.resolve(build.destination)!==destination||!Array.isArray(build.files)||!build.files.length)throw Error('No supported completed runtime is available');
+ if(build.revision!==6||!supportedArchiveHashes.has(build.oldHash)||build.diagnosticRevision||path.resolve(build.destination)!==destination||!Array.isArray(build.files)||!build.files.length)throw Error('No supported completed runtime is available');
  const archive=await fs.open(path.join(destination,'resources/app.asar'),'r');
  try{
   const prefix=Buffer.alloc(16);await archive.read(prefix,0,16,0);
