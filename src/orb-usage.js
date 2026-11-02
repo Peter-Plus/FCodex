@@ -10,7 +10,7 @@ function installOrbUsage(tabs){
  let enabled=true,dead=false,loading=false;try{enabled=localStorage.getItem('fade-orb-usage')!=='false'}catch{}
  const oldTitle=orb.getAttribute('title');
  function render(){if(dead)return;badge.hidden=!enabled;if(!enabled)return;const display=fadeUsageDisplay(tabs.accountUsage());badge.textContent=display.text}
- async function refresh(){if(dead||!enabled||loading||document.hidden)return;loading=true;try{await tabs.refreshAccountUsage()}catch{}finally{loading=false;render()}}
+ async function refresh(){if(dead||!enabled||loading||document.hidden)return;loading=true;try{await tabs.refreshAccountUsage()}catch(error){globalThis.__fadeReportError?.('orb-usage.refresh',error)}finally{loading=false;render()}}
  const unsubscribe=tabs.subscribe(render);const timer=setInterval(refresh,60000);on(window,'focus',refresh);on(document,'visibilitychange',refresh);render();void refresh();
  return {get enabled(){return enabled},set(value,persist=true){enabled=value;if(persist)try{localStorage.setItem('fade-orb-usage',String(value))}catch{}render();if(value)void refresh()},destroy(){dead=true;clearInterval(timer);unsubscribe();badge.remove();if(oldTitle===null)orb.removeAttribute('title');else orb.title=oldTitle}};
 }

@@ -40,11 +40,11 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  const chats=()=>{const data=adapter.snapshot();return [...(data.pinned??[]),...data.recent,...data.groups.flatMap(g=>g.chats)]};
  function go(location){const r=router();if(!r)throw Error('未找到原生导航');r.navigator.push({pathname:location.pathname,search:location.search||''},location.state)}
  function cancelNotification(){clearTimeout(notificationTimer);notificationTimer=0;pendingNativePath=null}
- function activate(tab){cancelNotification();try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){report(e.message)}}
+ function activate(tab){cancelNotification();try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message)}}
  function close(tab){
   cancelNotification();
   const index=state.tabs.indexOf(tab);if(index<0)return;
-  if([tab.path,tab.nativePath,tab.windowKey].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
+  if([tab.path,tab.nativePath,tab.windowKey].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message);return}}
   closingPath=tab.path;closingKey=router()?.location.key;state.tabs.splice(index,1);state.jobs.push({path:tab.path,id:tab.id,after:Date.now()+15000});sync();
  }
  function sync(){
@@ -128,7 +128,7 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
    if(loc.pathname!==initialPath||loc.key!==initialKey)return;
    // Settings, onboarding and other special routes keep their native guards.
    if(!/^\/local\/[^/]+$/.test(loc.pathname)&&loc.pathname!=='/')return;
-   try{r.navigator.push({pathname:path,search:match[2]||'',hash:match[3]||''},message.state);sync()}catch(e){report(e.message)}
+   try{r.navigator.push({pathname:path,search:match[2]||'',hash:match[3]||''},message.state);sync()}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message)}
   },300);
  }
  window.addEventListener?.('message',nativeNavigation);

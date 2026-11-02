@@ -81,6 +81,8 @@ try{
 setTimeout(()=>fail(Error('Electron smoke test timeout')),45000);
 `;
 const files=new Map([
+ ['.vite/build/fade-error-log.cjs',await fs.readFile('startup/error-log.cjs')],
+ ['.vite/build/fade-build-info.json',Buffer.from('{}')],
  ['package.json',Buffer.from(JSON.stringify({name:'fade-startup-test',main:'.vite/build/main.cjs'}))],
  ['.vite/build/main.cjs',Buffer.from(main)],
  ['.vite/build/fade-codex-icon.png',await fs.readFile('Arts/fade-codex-icon.png')],

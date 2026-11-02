@@ -148,7 +148,7 @@ function installExternalHtmlOpen(doc,platform,report){
    if(stopped)return;
    const result=await api.openIn.open({hostId:'local',path,target:'systemDefault'});
    if(result?.success!==true)throw Error('Open failed');
-  }).catch(()=>{if(!stopped)report('无法用系统默认应用打开此 HTML 文件，请检查文件是否存在及默认应用设置')}).finally(()=>pending.delete(button));
+  }).catch(error=>{globalThis.__fadeReportError?.('file-panel.open-external',error);if(!stopped)report('无法用系统默认应用打开此 HTML 文件，请检查文件是否存在及默认应用设置')}).finally(()=>pending.delete(button));
  };
  doc.addEventListener('click',click,true);
  return ()=>{stopped=true;doc.removeEventListener('click',click,true)};
@@ -197,7 +197,7 @@ function installFilePanel(doc,report){
     const api=await platform();if(stopped)return;
     if(kind==='copy'){await api.clipboard.writeText(path);report('已复制路径')}
     else {const result=await api.openIn.open({...metadata,path,target:'fileManager'});if(result?.success===false)throw new Error('Reveal failed')}
-   }catch{if(!stopped)report(kind==='copy'?'复制路径失败':'无法在资源管理器中打开')}
+   }catch(error){globalThis.__fadeReportError?.('file-panel',error);if(!stopped)report(kind==='copy'?'复制路径失败':'无法在资源管理器中打开')}
   };
   state.explorer=button('在资源管理器中打开','folder',()=>act('folder'));
   state.copy=button('复制路径','copy',()=>act('copy'));

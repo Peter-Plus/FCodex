@@ -1,3 +1,25 @@
+// One page-lifetime collector, including classic mode and repeated injection.
+// Only failures enter this path; no console interception, polling or action log.
+(()=>{
+ if(globalThis.__fadeReportError)return;
+ const recent=new Map();let windowAt=0,count=0;
+ globalThis.__fadeReportError=(operation,error)=>{
+  try{
+   if(typeof window.fadeDiagnostics?.report!=='function')return;
+   const now=Date.now();if(now-windowAt>=60000){windowAt=now;count=0}
+   if(count>=60)return;
+   const message=typeof error==='string'?error:typeof error?.message==='string'?error.message:'Unknown error';
+   const key=String(operation).slice(0,120)+'\n'+message.slice(0,4000);
+   if(recent.has(key)&&now-recent.get(key)<60000)return;
+   if(recent.size>=128)recent.delete(recent.keys().next().value);
+   recent.set(key,now);count++;
+   window.fadeDiagnostics.report({uiRevision:'24d1668aac1fbb9bf33d772b90b6c741a456a8930ef1b20a7382224b9eecd77a',operation:String(operation).slice(0,120),message:message.slice(0,4000),name:typeof error?.name==='string'?error.name.slice(0,80):'Error',stack:typeof error?.stack==='string'?error.stack.slice(0,6000):''});
+  }catch{}
+ };
+ window.addEventListener('error',event=>{if(event.error||event.message)globalThis.__fadeReportError('renderer.unhandled-error',event.error||event.message)});
+ window.addEventListener('unhandledrejection',event=>globalThis.__fadeReportError('renderer.unhandled-rejection',event.reason));
+})();
+
 (function startFade(styleText=document.getElementById('fade-codex-style')?.textContent||'') {
  if(window.__fadeCodex)return;
  // Keep a fresh initializer, not the disposed runtime's listeners and state.
@@ -18,26 +40,52 @@
  const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)');
  // Use the installed app's appearance setting so Windows caption symbols follow
 // the same polarity as the renderer. This preference persists with Fade's theme.
-function createNativeThemeSync(win,report){
+function createNativeThemeSync(win,report,{loadSettings}={}){
  const bridge=win.electronBridge;
  if(!bridge?.sendMessageFromView)return {set(){return Promise.resolve(false)},settled(){return Promise.resolve()},destroy(){}};
  let stopped=false,flight=null,desired=null,applied=null;
+ let settingsPromise;
+ async function settings(){
+  if(!settingsPromise)settingsPromise=(async()=>{
+   if(loadSettings)return loadSettings();
+   const url=[...(win.document?.querySelectorAll('link[href]')||[])].map(link=>link.href).find(url=>/\/assets\/app-shared-[\w-]+\.js(?:\?|$)/.test(url));
+   if(!url)return null;
+   const module=await import(url);
+   return Object.values(module).find(value=>value&&typeof value==='object'&&typeof value.settings?.read==='function'&&typeof value.settings?.write==='function')?.settings||null;
+  })().catch(error=>{settingsPromise=null;throw error});
+  return settingsPromise;
+ }
  const pending=new Map();
  function receive(event){
   const data=event.data;
   if(data?.type!=='fetch-response')return;
   const entry=pending.get(data.requestId);if(!entry)return;
   if(data.responseType==='success'&&(!data.status||data.status<400))entry.finish(null,data);
-  else entry.finish(new Error('Native appearance setting failed'));
+  else {
+   const detail=typeof data.error==='string'?data.error.slice(0,1000):'';
+   entry.finish(new Error('Native appearance setting failed ('+entry.method+'; status '+(data.status??'unknown')+')'+(detail?': '+detail:'')));
+  }
  }
  win.addEventListener('message',receive);
- function request(method,params){return new Promise((resolve,reject)=>{
+ function legacyRequest(method,params){return new Promise((resolve,reject)=>{
   const requestId=win.crypto.randomUUID();
   const finish=(error,data)=>{const entry=pending.get(requestId);if(!entry)return;win.clearTimeout(entry.timer);pending.delete(requestId);error?reject(error):resolve(data)};
   const timer=win.setTimeout(()=>finish(new Error('Native appearance setting timed out')),5000);
-  pending.set(requestId,{timer,finish});
+  pending.set(requestId,{timer,finish,method});
   Promise.resolve().then(()=>bridge.sendMessageFromView({type:'fetch',requestId,method:'POST',url:'vscode://codex/'+method,body:JSON.stringify(params)})).catch(finish);
  })}
+ async function request(method,params){
+  const api=await settings();if(stopped)throw Error('Disposed');
+  if(!api)return legacyRequest(method,params);
+  // Current Codex uses disposable platform calls, not vscode fetch handlers.
+  const call=method==='get-setting'?api.read(params.key):api.write(params.key,params.value);
+  return new Promise((resolve,reject)=>{
+   const id=win.crypto.randomUUID();
+   const finish=(error,value)=>{const entry=pending.get(id);if(!entry)return;pending.delete(id);win.clearTimeout(entry.timer);try{call?.[Symbol.dispose]?.()}catch{}error?reject(error):resolve(method==='get-setting'?{bodyJsonString:JSON.stringify({value:value?.effective})}:{} )};
+   const timer=win.setTimeout(()=>finish(Error('Native appearance setting timed out ('+method+')')),5000);
+   pending.set(id,{timer,finish,method});Promise.resolve(call).then(value=>finish(null,value),finish);
+  });
+ }
  const write=value=>request('set-setting',{key:'appearanceTheme',value});
  // Electron's native theme settings default to undefined. Match its renderer
  // defaults before persisting a complete theme (the set-setting schema requires it).
@@ -75,7 +123,7 @@ function createNativeThemeSync(win,report){
   flight=(async()=>{while(!stopped&&desired!==applied){const value=desired;await write(value);applied=value}})().finally(()=>{flight=null});
   return flight;
  }
- return {applyCatppuccinTheme,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped)report(error);return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
+ return {applyCatppuccinTheme,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped){globalThis.__fadeReportError?.('native-theme.apply',error);report(error)};return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
 }
 
 // Preserve immediate theme feedback; skip writes whose values are unchanged.
@@ -220,7 +268,7 @@ function installFadeWindowMode(){
  function newProjectChat(projectId){if(!enabled)return false;if(!prepare('codex'))return true;pendingProject={key:fadeNativeRouter(document)?.location?.key,pane:pendingPane};if(!adapter.newChat(projectId)){pendingProject=null;announce('未找到项目的新聊天入口')}sync();return true}
  function activate(pane,key){const e=entry(key);if(!e)return;remember(pane);pane.active=key;if(e.home)navigateHome(e);else api[e.type].activate(e.tab);render()}
  function blank(pane){remember(pane);pendingPane=pane;if(pane.type==='gpt'){api.gpt.newChat(true);sync();return}const key='fade-home-'+crypto.randomUUID();api.codex.addHome(key);sync();layout.place(key,pane);activate(pane,key)}
- function add(type){if(!enabled)return;if(layout.panes.length>=4){announce('聊天窗口数量已满');return}try{const pane=layout.add(type);blank(pane);render()}catch(error){announce(error.message)}closeMenu()}
+ function add(type){if(!enabled)return;if(layout.panes.length>=4){announce('聊天窗口数量已满');return}try{const pane=layout.add(type);blank(pane);render()}catch(error){globalThis.__fadeReportError?.('window-mode',error);announce(error.message)}closeMenu()}
  function closeTab(pane,key){const e=entry(key);if(!e)return;layout.forget(key);if(e.home)homes.delete(key);else api[e.type].close(e.type==='gpt'?e.tab.id:e.tab);if(!pane.tabs.length){layout.remove(pane);if(focus===pane)focus=layout.panes[0]??null}if(!layout.panes.length){const p=layout.add('codex');blank(p)}else if(focus?.active)activate(focus,focus.active);signature='';sync()}
  function closePane(pane){for(const key of [...pane.tabs]){const e=entry(key);layout.forget(key);if(e?.home)homes.delete(key);else if(e)api[e.type].close(e.type==='gpt'?e.tab.id:e.tab)}layout.remove(pane);focus=layout.panes[0]??layout.add('codex');if(focus.active)activate(focus,focus.active);else blank(focus);signature='';sync()}
  function publish(byKey=new Map(entries().map(e=>[e.key,e]))){
@@ -372,7 +420,7 @@ function installFullscreenControls(){
  const windowApi=window.fadeWindowControls;
  const restoreButton=$('#fullscreenRestore');
  function applyWindowState(state){if(!state?.custom)return;customWindow=true;nativeFullscreen=state.fullscreen;maximized=state.maximized;sync()}
- async function windowAction(action){try{applyWindowState(await windowApi.action(action))}catch{announce('窗口操作失败，请重试')}}
+ async function windowAction(action){try{applyWindowState(await windowApi.action(action))}catch(error){globalThis.__fadeReportError?.('fullscreen',error);announce('窗口操作失败，请重试')}}
  const isFullscreen=()=>nativeFullscreen||!!document.fullscreenElement;
  function sync(){const full=isFullscreen();full?host.setAttribute('data-fullscreen',''):host.removeAttribute('data-fullscreen');button.setAttribute('aria-pressed',String(full));button.title=full?'退出全屏':'全屏';button.setAttribute('aria-label',button.title);controls.hidden=!(full||customWindow);restoreButton.title=full?'退出全屏':maximized?'还原窗口':'最大化';restoreButton.setAttribute('aria-label',restoreButton.title);restoreButton.setAttribute('data-maximized',String(maximized&&!full))}
  async function nativeMenu(){
@@ -390,7 +438,7 @@ function installFullscreenControls(){
    else if(document.fullscreenElement)await document.exitFullscreen();
    else if(window.electronBridge){const api=await nativeMenu(),snapshot=await api.getSnapshot();const item=snapshot['view-menu']?.find(i=>i.accelerator==='F11');if(!item?.enabled)throw Error('Fullscreen action unavailable');await api.invokeItem(item.nativeCommandId)}
    else await document.documentElement.requestFullscreen();
-  }catch{announce('全屏切换失败，请使用 F11 重试')}finally{busy=false;sync()}
+  }catch(error){globalThis.__fadeReportError?.('fullscreen',error);announce('全屏切换失败，请使用 F11 重试')}finally{busy=false;sync()}
  }
  on(button,'click',toggle);
  on($('#fullscreenRestore'),'click',()=>{if(customWindow)void windowAction('maximize');else if(isFullscreen())void toggle()});
@@ -403,7 +451,7 @@ function installFullscreenControls(){
  on(window,'keydown',event=>{if(event.key==='Escape'&&nativeFullscreen&&!event.defaultPrevented){event.preventDefault();void toggle()}});
  // Native fullscreen can already be active when the theme is reinjected.
  nativeFullscreen=window.__fadeNativeFullscreen??(!!window.screen&&Math.abs(window.outerHeight-window.screen.height)<2&&Math.abs(window.outerWidth-window.screen.width)<2);
- if(windowApi){unsubscribe=windowApi.subscribe(applyWindowState);void windowApi.action('state').then(applyWindowState).catch(()=>{})}
+ if(windowApi){unsubscribe=windowApi.subscribe(applyWindowState);void windowApi.action('state').then(applyWindowState).catch(error=>globalThis.__fadeReportError?.('fullscreen.read-state',error))}
  sync();return ()=>{unsubscribe?.();host.removeAttribute('data-fullscreen')};
 }
 
@@ -419,11 +467,20 @@ function installFadeSettings(){
  const startup=document.createElement('button');startup.type='button';startup.className='fade-startup-fullscreen';startup.setAttribute('role','menuitemcheckbox');startup.setAttribute('aria-checked','false');startup.setAttribute('aria-label','启动全屏');startup.title='下次启动生效，启动动画和应用均使用全屏';startup.innerHTML='<span>启动全屏</span><span class="fade-setting-switch" aria-hidden="true"></span>';startup.disabled=true;menu.append(startup);
  const quit=document.createElement('button');quit.type='button';quit.className='fade-startup-fullscreen';quit.setAttribute('role','menuitemcheckbox');quit.setAttribute('aria-checked','false');quit.setAttribute('aria-label','关闭窗口退出进程');quit.title=window.fadeWindowControls?.closeToQuitSupported?'立即生效；有运行中的任务时先确认':'首次安装此功能后，请退出并重新启动 Fade';quit.innerHTML='<span>关闭窗口退出进程</span><span class="fade-setting-switch" aria-hidden="true"></span>';quit.disabled=true;menu.append(quit);
  let settingsDead=false;
+ const logs=document.createElement('button');logs.type='button';logs.className='fade-startup-fullscreen';logs.setAttribute('role','menuitem');logs.textContent='打开 FCodex 报错日志';logs.title='在文件资源管理器中打开报错日志所在文件夹';menu.append(logs);
+ on(logs,'click',async()=>{
+  if(logs.disabled)return;logs.disabled=true;
+  try{
+   if(typeof window.fadeDiagnostics?.openFolder!=='function')throw Error('当前版本暂不支持打开日志目录，请更新 FCodex 后重试');
+   await window.fadeDiagnostics.openFolder();if(!settingsDead)close();
+  }catch(error){globalThis.__fadeReportError?.('fade-settings.open-log-folder',error);if(!settingsDead)announce('无法打开日志文件夹：'+error.message)}
+  finally{if(!settingsDead)logs.disabled=false}
+ });
  const windowToggle=document.createElement('button');windowToggle.type='button';windowToggle.className='fade-startup-fullscreen';windowToggle.setAttribute('role','menuitemcheckbox');windowToggle.setAttribute('aria-label','窗口模式');windowToggle.setAttribute('aria-checked',String(windowMode.enabled));windowToggle.innerHTML='<span>窗口模式</span><span class="fade-setting-switch" aria-hidden="true"></span>';menu.append(windowToggle);on(windowToggle,'click',()=>{windowMode.set(!windowMode.enabled);windowToggle.setAttribute('aria-checked',String(windowMode.enabled))});
- async function readStartup(){if(!window.fadeStartupPreferences)return;try{const prefs=await window.fadeStartupPreferences.get();if(settingsDead)return;startup.setAttribute('aria-checked',String(prefs.startupFullscreen));startup.disabled=false;quit.setAttribute('aria-checked',String(prefs.closeToQuit===true));quit.disabled=!window.fadeWindowControls?.closeToQuitSupported}catch(error){if(!settingsDead)announce('启动设置读取失败：'+error.message)}}
+ async function readStartup(){if(!window.fadeStartupPreferences)return;try{const prefs=await window.fadeStartupPreferences.get();if(settingsDead)return;startup.setAttribute('aria-checked',String(prefs.startupFullscreen));startup.disabled=false;quit.setAttribute('aria-checked',String(prefs.closeToQuit===true));quit.disabled=!window.fadeWindowControls?.closeToQuitSupported}catch(error){globalThis.__fadeReportError?.('fade-settings',error);if(!settingsDead)announce('启动设置读取失败：'+error.message)}}
  on(window,'fade-startup-preferences-ready',readStartup);void readStartup();
- on(startup,'click',async()=>{if(startup.disabled)return;startup.disabled=true;try{const prefs=await window.fadeStartupPreferences.set(startup.getAttribute('aria-checked')!=='true');if(!settingsDead)startup.setAttribute('aria-checked',String(prefs.startupFullscreen))}catch(error){if(!settingsDead)announce('启动设置保存失败：'+error.message)}finally{if(!settingsDead)startup.disabled=false}});
- on(quit,'click',async()=>{if(quit.disabled)return;quit.disabled=true;try{const prefs=await window.fadeStartupPreferences.set({closeToQuit:quit.getAttribute('aria-checked')!=='true'});if(!settingsDead)quit.setAttribute('aria-checked',String(prefs.closeToQuit))}catch(error){if(!settingsDead)announce('退出设置保存失败：'+error.message)}finally{if(!settingsDead)quit.disabled=false}});
+ on(startup,'click',async()=>{if(startup.disabled)return;startup.disabled=true;try{const prefs=await window.fadeStartupPreferences.set(startup.getAttribute('aria-checked')!=='true');if(!settingsDead)startup.setAttribute('aria-checked',String(prefs.startupFullscreen))}catch(error){globalThis.__fadeReportError?.('fade-settings',error);if(!settingsDead)announce('启动设置保存失败：'+error.message)}finally{if(!settingsDead)startup.disabled=false}});
+ on(quit,'click',async()=>{if(quit.disabled)return;quit.disabled=true;try{const prefs=await window.fadeStartupPreferences.set({closeToQuit:quit.getAttribute('aria-checked')!=='true'});if(!settingsDead)quit.setAttribute('aria-checked',String(prefs.closeToQuit))}catch(error){globalThis.__fadeReportError?.('fade-settings',error);if(!settingsDead)announce('退出设置保存失败：'+error.message)}finally{if(!settingsDead)quit.disabled=false}});
  const displayEntry=document.createElement('button');displayEntry.type='button';displayEntry.className='fade-startup-fullscreen fade-settings-group-entry';displayEntry.setAttribute('role','menuitem');displayEntry.setAttribute('aria-expanded','false');displayEntry.setAttribute('aria-controls','fadeDisplaySettings');displayEntry.innerHTML='<span>显示设置</span><span class="fade-settings-chevron" aria-hidden="true">›</span>';menu.append(displayEntry);
  const displayGroup=document.createElement('div');displayGroup.id='fadeDisplaySettings';displayGroup.className='fade-settings-group';displayGroup.hidden=true;displayGroup.setAttribute('role','group');displayGroup.setAttribute('aria-label','显示设置');menu.append(displayGroup);
  function collapseDisplay(){displayGroup.hidden=true;displayEntry.setAttribute('aria-expanded','false')}
@@ -436,7 +493,7 @@ function installFadeSettings(){
  function collapseWsl(){wslGroup.hidden=true;wslEntry.setAttribute('aria-expanded','false')}
  on(wslEntry,'click',()=>{wslGroup.hidden=!wslGroup.hidden;wslEntry.setAttribute('aria-expanded',String(!wslGroup.hidden))});
  on(wslGroup,'keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();collapseWsl();wslEntry.focus()}});
- const wslPaths=document.createElement('button');wslPaths.type='button';wslPaths.className='fade-startup-fullscreen';wslPaths.setAttribute('role','menuitemcheckbox');wslPaths.setAttribute('aria-label','图片附件路径转换');wslPaths.setAttribute('aria-checked',String(wslImagePaths.enabled));wslPaths.title='发送图片附件时转换为 WSL 的 /mnt/ 路径；仅在本机 Codex 使用默认挂载目录的 WSL 时开启，预览保持原样';wslPaths.innerHTML='<span>图片附件路径转换</span><span class="fade-setting-switch" aria-hidden="true"></span>';wslGroup.append(wslPaths);on(wslPaths,'click',()=>{try{wslImagePaths.set(!wslImagePaths.enabled);wslPaths.setAttribute('aria-checked',String(wslImagePaths.enabled))}catch(error){announce(error.message)}});
+ const wslPaths=document.createElement('button');wslPaths.type='button';wslPaths.className='fade-startup-fullscreen';wslPaths.setAttribute('role','menuitemcheckbox');wslPaths.setAttribute('aria-label','图片附件路径转换');wslPaths.setAttribute('aria-checked',String(wslImagePaths.enabled));wslPaths.title='发送图片附件时转换为 WSL 的 /mnt/ 路径；仅在本机 Codex 使用默认挂载目录的 WSL 时开启，预览保持原样';wslPaths.innerHTML='<span>图片附件路径转换</span><span class="fade-setting-switch" aria-hidden="true"></span>';wslGroup.append(wslPaths);on(wslPaths,'click',()=>{try{wslImagePaths.set(!wslImagePaths.enabled);wslPaths.setAttribute('aria-checked',String(wslImagePaths.enabled))}catch(error){globalThis.__fadeReportError?.('fade-settings',error);announce(error.message)}});
  const codeWrap=document.createElement('button');codeWrap.type='button';codeWrap.className='fade-startup-fullscreen';codeWrap.setAttribute('role','menuitemcheckbox');codeWrap.setAttribute('aria-label','预览器代码自动换行');codeWrap.setAttribute('aria-checked',String(previewCodeWrap.enabled));codeWrap.title='关闭后，长代码行可横向滚动查看';codeWrap.innerHTML='<span>预览器代码自动换行</span><span class="fade-setting-switch" aria-hidden="true"></span>';displayGroup.append(codeWrap);on(codeWrap,'click',()=>{previewCodeWrap.set(!previewCodeWrap.enabled);codeWrap.setAttribute('aria-checked',String(previewCodeWrap.enabled))});
  const appearanceEntry=document.createElement('button');appearanceEntry.type='button';appearanceEntry.className='fade-startup-fullscreen fade-settings-group-entry';appearanceEntry.setAttribute('role','menuitem');appearanceEntry.setAttribute('aria-expanded','false');appearanceEntry.setAttribute('aria-controls','fadeAppearanceSettings');appearanceEntry.innerHTML='<span>外观</span><span class="fade-settings-chevron" aria-hidden="true">›</span>';menu.append(appearanceEntry);
  const appearanceGroup=document.createElement('div');appearanceGroup.id='fadeAppearanceSettings';appearanceGroup.className='fade-settings-group';appearanceGroup.hidden=true;appearanceGroup.setAttribute('role','group');appearanceGroup.setAttribute('aria-label','外观');menu.append(appearanceGroup);
@@ -444,7 +501,7 @@ function installFadeSettings(){
  on(appearanceEntry,'click',()=>{appearanceGroup.hidden=!appearanceGroup.hidden;appearanceEntry.setAttribute('aria-expanded',String(!appearanceGroup.hidden))});
  on(appearanceGroup,'keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();collapseAppearance();appearanceEntry.focus()}});
  const accent=document.createElement('button');accent.type='button';accent.className='fade-startup-fullscreen';accent.setAttribute('role','menuitem');accent.setAttribute('aria-label','应用FCodex推荐主题');accent.title='应用原生 Catppuccin 亮色、暗色及代码主题，保留字体、对比度和窗口透明设置';accent.innerHTML='<span>应用FCodex推荐主题</span>';appearanceGroup.append(accent);
- on(accent,'click',async()=>{if(accent.disabled)return;accent.disabled=true;const label=accent.querySelector('span');label.textContent='应用中…';try{await nativeTheme.applyCatppuccinTheme();if(!settingsDead)announce('已应用原生 Catppuccin 主题')}catch(error){if(!settingsDead)announce('主题应用失败：'+error.message)}finally{if(!settingsDead){accent.disabled=false;label.textContent='应用FCodex推荐主题'}}});
+ on(accent,'click',async()=>{if(accent.disabled)return;accent.disabled=true;const label=accent.querySelector('span');label.textContent='应用中…';try{await nativeTheme.applyCatppuccinTheme();if(!settingsDead)announce('已应用原生 Catppuccin 主题')}catch(error){globalThis.__fadeReportError?.('fade-settings',error);if(!settingsDead)announce('主题应用失败：'+error.message)}finally{if(!settingsDead){accent.disabled=false;label.textContent='应用FCodex推荐主题'}}});
  const classic=document.createElement('button');classic.type='button';classic.className='fade-classic-mode';classic.setAttribute('role','menuitem');classic.innerHTML='<span>返回经典模式</span><kbd class="fade-setting-shortcut">Ctrl+Shift+L</kbd>';classic.setAttribute('aria-keyshortcuts','Control+Shift+L');classic.title='仅本次恢复原生界面；关闭所有 GPT 标签，回复完成后释放缓存';menu.append(classic);
  const backgrounds=document.createElement('button');backgrounds.type='button';backgrounds.className='fade-startup-fullscreen';backgrounds.setAttribute('role','menuitem');backgrounds.setAttribute('aria-haspopup','dialog');backgrounds.textContent='正文背景';appearanceGroup.append(backgrounds);on(backgrounds,'click',()=>{close();backgroundSettings.open()});
  on(classic,'click',()=>{close();returnToClassicMode()});
@@ -498,22 +555,22 @@ function installClassicWindowChrome(){
  const controller=new AbortController();
  const resume=document.createElement('button');resume.type='button';resume.textContent='fade';resume.title='返回 Fade 模式';resume.setAttribute('aria-label','返回 Fade 模式');resume.style.cssText='width:92px;font:12px "Segoe UI",sans-serif;border-radius:6px;margin:3px 6px;height:30px;cursor:pointer';
  view.insertBefore(resume,view.querySelector('button'));
- resume.addEventListener('click',()=>{if(resume.disabled)return;resume.disabled=true;try{if(typeof window.__fadeResume!=='function')throw Error('Fade 尚未加载');window.__fadeResume()}catch(error){resume.disabled=false;resume.textContent='重试 Fade';resume.title=error.message;console.error(error)}},{signal:controller.signal});
- for(const control of view.querySelectorAll('button[data-action]'))control.addEventListener('click',()=>{void api.action(control.dataset.action).then(state=>{if(state)sync(state)}).catch(console.error)},{signal:controller.signal});
- const unsubscribe=api.subscribe(sync);void api.action('state').then(sync).catch(console.error);document.body.append(chrome);
+ resume.addEventListener('click',()=>{if(resume.disabled)return;resume.disabled=true;try{if(typeof window.__fadeResume!=='function')throw Error('Fade 尚未加载');window.__fadeResume()}catch(error){globalThis.__fadeReportError?.('classic-mode',error);resume.disabled=false;resume.textContent='重试 Fade';resume.title=error.message;console.error(error)}},{signal:controller.signal});
+ for(const control of view.querySelectorAll('button[data-action]'))control.addEventListener('click',()=>{void api.action(control.dataset.action).then(state=>{if(state)sync(state)}).catch(error=>{globalThis.__fadeReportError?.('classic-mode.window-action',error);console.error(error)})},{signal:controller.signal});
+ const unsubscribe=api.subscribe(sync);void api.action('state').then(sync).catch(error=>{globalThis.__fadeReportError?.('classic-mode.window-action',error);console.error(error)});document.body.append(chrome);
  window.__fadeClassicChrome={destroy(){controller.abort();unsubscribe?.();chrome.remove();delete window.__fadeClassicChrome}};
 }
 let returningToClassic=false;
 async function returnToClassicMode(){
  if(returningToClassic)return;returningToClassic=true;
  try{
-  // Finish the last native theme write before removing the bridge and styles.
-  await nativeTheme.settled();
+  // Wait for outstanding writes, but optional appearance sync must not block exit.
+  try{await nativeTheme.settled()}catch(error){globalThis.__fadeReportError?.('classic-mode.theme-sync',error)}
   if(disposed)return;
   disposeGptTabs.closeAllForClassic();
   installClassicWindowChrome();
   window.__fadeCodex.destroy();
- }catch(error){if(!disposed)announce('暂未返回经典模式：'+error.message)}
+ }catch(error){globalThis.__fadeReportError?.('classic-mode',error);if(!disposed)announce('暂未返回经典模式：'+error.message)}
  finally{returningToClassic=false}
 }
 
@@ -529,7 +586,7 @@ function installOrbUsage(tabs){
  let enabled=true,dead=false,loading=false;try{enabled=localStorage.getItem('fade-orb-usage')!=='false'}catch{}
  const oldTitle=orb.getAttribute('title');
  function render(){if(dead)return;badge.hidden=!enabled;if(!enabled)return;const display=fadeUsageDisplay(tabs.accountUsage());badge.textContent=display.text}
- async function refresh(){if(dead||!enabled||loading||document.hidden)return;loading=true;try{await tabs.refreshAccountUsage()}catch{}finally{loading=false;render()}}
+ async function refresh(){if(dead||!enabled||loading||document.hidden)return;loading=true;try{await tabs.refreshAccountUsage()}catch(error){globalThis.__fadeReportError?.('orb-usage.refresh',error)}finally{loading=false;render()}}
  const unsubscribe=tabs.subscribe(render);const timer=setInterval(refresh,60000);on(window,'focus',refresh);on(document,'visibilitychange',refresh);render();void refresh();
  return {get enabled(){return enabled},set(value,persist=true){enabled=value;if(persist)try{localStorage.setItem('fade-orb-usage',String(value))}catch{}render();if(value)void refresh()},destroy(){dead=true;clearInterval(timer);unsubscribe();badge.remove();if(oldTitle===null)orb.removeAttribute('title');else orb.title=oldTitle}};
 }
@@ -749,7 +806,7 @@ async function prepareFadeBackground(file,win){
   const canvas=win.document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
   canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
   return {image:canvas.toDataURL('image/webp',.86),name:file.name};
- }catch(error){throw Error(error.message.includes('像素')?error.message:'图片无法读取，请换一张有效的 PNG、JPG 或 WebP 图片')}
+ }catch(error){globalThis.__fadeReportError?.('background-settings',error);throw Error(error.message.includes('像素')?error.message:'图片无法读取，请换一张有效的 PNG、JPG 或 WebP 图片')}
  finally{win.URL.revokeObjectURL(url)}
 }
 function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
@@ -823,18 +880,18 @@ function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
  async function savePresets(next){
   if(dead||busy||!loaded)return false;busy=true;render();
   try{await store.write('presets',next);if(dead)return false;presets=next;status.textContent='预设已保存。删除预设不改变当前背景';channel?.postMessage('changed');return true}
-  catch(error){if(!dead)status.textContent='保存失败：'+error.message;return false}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead)status.textContent='保存失败：'+error.message;return false}
   finally{busy=false;render()}
  }
  async function commit(mode,next){
   if(dead||busy||!loaded)return;busy=true;render();status.textContent='正在保存…';
   try{const value=normalizeFadeBackground(typeof next==='function'?await next():next);if(dead)return;await store.write(mode,value);if(dead)return;state[mode]=value;apply();status.textContent=(mode==='light'?'亮色':'暗色')+'背景已保存';channel?.postMessage('changed')}
-  catch(error){if(!dead){status.textContent='保存失败：'+error.message;announce(status.textContent)}}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead){status.textContent='保存失败：'+error.message;announce(status.textContent)}}
   finally{busy=false;apply();render()}
  }
  async function load(){
   try{const values=await Promise.all(['light','dark','presets'].map(mode=>store.read(mode)));if(dead)return;state.light=normalizeFadeBackground(values[0]);state.dark=normalizeFadeBackground(values[1]);presets=Array.isArray(values[2])?values[2].filter(p=>p&&typeof p.id==='string'&&typeof p.title==='string'&&p.value?.kind==='custom').map(p=>({id:p.id,title:p.title.slice(0,40),value:normalizeFadeBackground(p.value)})):[];loaded=true;apply();render();status.textContent='更改会自动保存'}
-  catch(error){if(!dead){status.textContent='背景设置读取失败：'+error.message;render()}}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead){status.textContent='背景设置读取失败：'+error.message;render()}}
  }
  const channel=win.BroadcastChannel?new win.BroadcastChannel('fcodex-backgrounds'):null;
  if(channel)channel.onmessage=()=>{if(!busy)void load()};
@@ -903,7 +960,7 @@ function installConversationTitle(){
     if(action?.enabled!==false&&typeof action?.onSelect==='function'){await action.onSelect();return}break;
    }
    announce('当前聊天暂时无法重命名');
-  }catch{announce('打开重命名失败，请重试')}finally{renaming=false}
+  }catch(error){globalThis.__fadeReportError?.('conversation-title',error);announce('打开重命名失败，请重试')}finally{renaming=false}
  }
  function finishEdit(){editor?.remove();editor=null;title.style.visibility='';}
  async function saveEdit(){
@@ -920,7 +977,7 @@ function installConversationTitle(){
    for(let i=0;i<60&&dialog.isConnected;i++)await new Promise(resolve=>setTimeout(resolve,50));
    if(dialog.isConnected){[...dialog.querySelectorAll('button')].find(el=>/^(取消|Cancel)$/.test(el.textContent.trim()))?.click();throw Error('保存未完成，请重试')}
    finishEdit();schedule();
-  }catch(error){announce(error.message);if(editor){editor.disabled=false;editor.focus()}}
+  }catch(error){globalThis.__fadeReportError?.('conversation-title',error);announce(error.message);if(editor){editor.disabled=false;editor.focus()}}
   finally{root.removeAttribute('data-fade-inline-saving');mask.remove()}
  }
  function rename(){
@@ -1324,7 +1381,7 @@ function installExternalHtmlOpen(doc,platform,report){
    if(stopped)return;
    const result=await api.openIn.open({hostId:'local',path,target:'systemDefault'});
    if(result?.success!==true)throw Error('Open failed');
-  }).catch(()=>{if(!stopped)report('无法用系统默认应用打开此 HTML 文件，请检查文件是否存在及默认应用设置')}).finally(()=>pending.delete(button));
+  }).catch(error=>{globalThis.__fadeReportError?.('file-panel.open-external',error);if(!stopped)report('无法用系统默认应用打开此 HTML 文件，请检查文件是否存在及默认应用设置')}).finally(()=>pending.delete(button));
  };
  doc.addEventListener('click',click,true);
  return ()=>{stopped=true;doc.removeEventListener('click',click,true)};
@@ -1373,7 +1430,7 @@ function installFilePanel(doc,report){
     const api=await platform();if(stopped)return;
     if(kind==='copy'){await api.clipboard.writeText(path);report('已复制路径')}
     else {const result=await api.openIn.open({...metadata,path,target:'fileManager'});if(result?.success===false)throw new Error('Reveal failed')}
-   }catch{if(!stopped)report(kind==='copy'?'复制路径失败':'无法在资源管理器中打开')}
+   }catch(error){globalThis.__fadeReportError?.('file-panel',error);if(!stopped)report(kind==='copy'?'复制路径失败':'无法在资源管理器中打开')}
   };
   state.explorer=button('在资源管理器中打开','folder',()=>act('folder'));
   state.copy=button('复制路径','copy',()=>act('copy'));
@@ -1617,7 +1674,7 @@ function fadeOwnPreviewEditor(editor,notify,manualOnly=false){
   if(released)return;
   if(checking)return checking;
   const version=generation;
-  checking=(async()=>{try{const snapshot=await editor.readFile();if(!released&&generation===version)observe(snapshot)}catch(error){if(!released&&generation===version){state.error=error;state.hint=true;notify()}}finally{checking=null}})();
+  checking=(async()=>{try{const snapshot=await editor.readFile();if(!released&&generation===version)observe(snapshot)}catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(!released&&generation===version){state.error=error;state.hint=true;notify()}}finally{checking=null}})();
   return checking;
  }
  function wrap(name,fn){if(typeof editor[name]!=='function')return;originals.set(name,{own:Object.hasOwn(editor,name),value:editor[name]});wrappers.set(name,fn);editor[name]=fn}
@@ -1738,7 +1795,7 @@ function installPreviewFreshness(doc,report){
   try{const saved=await state.owner.saveNow();if(!current(state))return;
    if(!saved){if(state.owner.state.stale||state.owner.state.error)win.alert('文件已过期或无法确认磁盘版本，已阻止保存覆盖。请先复制并备份当前文档内容，再刷新文件并合并修改。');else report('文件未保存，请等待编辑完成后重试。')}
    else report('文件已保存');
-  }catch(error){if(current(state))report('保存失败：'+error.message)}finally{if(current(state))render(state)}
+  }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state))report('保存失败：'+error.message)}finally{if(current(state))render(state)}
  }
  function eventState(event){const path=event.composedPath();return [...states.values()].find(state=>current(state)&&visible(state.pane)&&(path.includes(state.pane)||state.pane.contains(doc.activeElement)||path.includes(state.bar.parentElement)))}
  function keydown(event){
@@ -1835,7 +1892,7 @@ function installPreviewFreshness(doc,report){
    state.busy=false;if(!applied){render(state);return}
    state.baseline=null;if(owner)render(state);else paint(state,'FCodex · 已刷新');
    win.requestAnimationFrame(()=>{if(current(state)&&visible(state.pane))for(const [el,top,left]of scrolls)if(el.isConnected){el.scrollTop=top;el.scrollLeft=left}});
-  }catch(error){if(current(state)){state.busy=false;paint(state,error.message||'刷新失败，保留原有内容',true);report('预览刷新失败：'+(error.message||'请重试'))}}
+  }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state)){state.busy=false;paint(state,error.message||'刷新失败，保留原有内容',true);report('预览刷新失败：'+(error.message||'请重试'))}}
   finally{state.busy=false}
  }
  function mount(pane,meta){
@@ -1898,7 +1955,7 @@ function installPreviewFreshness(doc,report){
       }
      }
      if(current(state)&&!state.busy&&state.owner===owner&&owner)render(state);
-    }catch(error){if(current(state)&&!state.busy){if(owner){owner.state.error=error;owner.state.hint=true}paint(state,error.message,true)}}
+    }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state)&&!state.busy){if(owner){owner.state.error=error;owner.state.hint=true}paint(state,error.message,true)}}
    }
   }finally{running=false}
  }
@@ -2255,7 +2312,7 @@ function installChatCacheRelease(doc,scope,module,state,isOpen,report){
    for(const id of job.ids)module.DYn(scope,id);
    scope.queryClient.removeQueries({predicate:q=>fadeChatQueryMatches(q,job.ids)});
    remove();
-  }lastError=''}catch(error){const message='聊天缓存释放暂未完成：'+error.message;if(message!==lastError){lastError=message;report(message)}}finally{running=false;schedule(500)}
+  }lastError=''}catch(error){globalThis.__fadeReportError?.('gpt-tabs',error);const message='聊天缓存释放暂未完成：'+error.message;if(message!==lastError){lastError=message;report(message)}}finally{running=false;schedule(500)}
  }
  schedule();
  return {enqueue(tab,id){jobs.push({draftKey:tab.id,ids:[...new Set([tab.conversationId,id].filter(Boolean))],identity:identity()});schedule()},destroy(){disposed=true;globalThis.clearTimeout(timer)}};
@@ -2315,7 +2372,7 @@ function installGptTabs(doc,list,add,report,options={}){
    upgrade(tab);state.active=tab.id;
    if(tab.location)go(tab.location);else module.zYt(scope,{activeProject:null,fadeChat:true,fadeDraftKey:tab.id,initialChatGptConversationId:tab.conversationId,sidebarProductMode:'codex'});
    syncActivity();render();
-  }catch(e){report('未能打开聊天：'+e.message)}
+  }catch(e){globalThis.__fadeReportError?.('gpt-tabs',e);report('未能打开聊天：'+e.message)}
  }
  function newChat(internal=false){if(!ready)return;replacementHome=null;if(!internal&&options.beforeNew?.()===false)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
  function openHistory(chat){
@@ -2387,7 +2444,7 @@ function installGptTabs(doc,list,add,report,options={}){
    if(disposed)return;
    cacheRelease=installChatCacheRelease(doc,scope,module,state,job=>state.tabs.some(t=>t.id===job.draftKey||job.ids.includes(resolved(t))),message=>{if(releaseAfterDispose)console.warn(message);else report(message)});
    ready=true;nativeSubscriptions.push(scope.queryClient.getQueryCache().subscribe(schedule));sync();
-  }catch(e){if(!disposed){report('ChatGPT 入口不可用：'+e.message);render()}}
+  }catch(e){globalThis.__fadeReportError?.('gpt-tabs',e);if(!disposed){report('ChatGPT 入口不可用：'+e.message);render()}}
  }
  const query=()=>{const queries=scope?.queryClient.getQueryCache().getAll().filter(q=>q.queryKey[0]==='chatgpt-conversations'&&q.queryKey[1]===20)??[];return queries.find(q=>typeof q.options?.queryFn==='function')??queries[0]};
  const pinnedQuery=()=>scope?.queryClient.getQueryCache().getAll().find(q=>q.queryKey[0]==='chatgpt-pinned-conversations'&&q.queryKey[1]==='v2');
@@ -2399,7 +2456,7 @@ function installGptTabs(doc,list,add,report,options={}){
   if(!conversation)return false;
   const identity=JSON.stringify([scope.get(module.GMr),scope.get(module.YMr)]);
   const current=()=>!disposed&&identity===JSON.stringify([scope.get(module.GMr),scope.get(module.YMr)]);
-  const fail=error=>report('聊天操作失败：'+error.message);
+  const fail=error=>{globalThis.__fadeReportError?.('gpt-tabs.chat-action',error);report('聊天操作失败：'+error.message)};
   const pinned=scope.get(module.Jan,id)??conversation.is_starred===true;
   const editable=module.mW(conversation,scope.get(module.qMr),scope.get(module.KMr));
   const title=conversation.title||'未命名聊天',messages=module.Don;
@@ -2408,7 +2465,7 @@ function installGptTabs(doc,list,add,report,options={}){
   const remove=()=>{
    let deleting=false;
    const close=()=>module.U4n(scope,module.gW);
-   const render=()=>module.J4n(scope,module.gW,{open:true,title,isDeleting:deleting,onOpenChange:open=>{if(!open&&!deleting)close()},onConfirm:async()=>{if(deleting||!current())return;deleting=true;render();try{await module.aon({scope,conversationId:id});close()}catch(error){deleting=false;render();fail(error)}}});
+   const render=()=>module.J4n(scope,module.gW,{open:true,title,isDeleting:deleting,onOpenChange:open=>{if(!open&&!deleting)close()},onConfirm:async()=>{if(deleting||!current())return;deleting=true;render();try{await module.aon({scope,conversationId:id});close()}catch(error){globalThis.__fadeReportError?.('gpt-tabs',error);deleting=false;render();fail(error)}}});
    render();
   };
   Promise.resolve().then(async()=>{
@@ -2500,11 +2557,11 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
  const chats=()=>{const data=adapter.snapshot();return [...(data.pinned??[]),...data.recent,...data.groups.flatMap(g=>g.chats)]};
  function go(location){const r=router();if(!r)throw Error('未找到原生导航');r.navigator.push({pathname:location.pathname,search:location.search||''},location.state)}
  function cancelNotification(){clearTimeout(notificationTimer);notificationTimer=0;pendingNativePath=null}
- function activate(tab){cancelNotification();try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){report(e.message)}}
+ function activate(tab){cancelNotification();try{closingPath=null;state.jobs=state.jobs.filter(j=>j.path!==tab.path);go(tab.location);sync()}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message)}}
  function close(tab){
   cancelNotification();
   const index=state.tabs.indexOf(tab);if(index<0)return;
-  if([tab.path,tab.nativePath,tab.windowKey].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){report(e.message);return}}
+  if([tab.path,tab.nativePath,tab.windowKey].includes(router()?.location.state?.fadePaneHome||router()?.location.pathname)){try{const next=state.tabs[index+1]||state.tabs[index-1];go(next?.location||{pathname:'/',state:{sidebarProductMode:'codex'}})}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message);return}}
   closingPath=tab.path;closingKey=router()?.location.key;state.tabs.splice(index,1);state.jobs.push({path:tab.path,id:tab.id,after:Date.now()+15000});sync();
  }
  function sync(){
@@ -2588,7 +2645,7 @@ function installCodexTabs(doc,list,add,adapter,report,newChat,options={}){
    if(loc.pathname!==initialPath||loc.key!==initialKey)return;
    // Settings, onboarding and other special routes keep their native guards.
    if(!/^\/local\/[^/]+$/.test(loc.pathname)&&loc.pathname!=='/')return;
-   try{r.navigator.push({pathname:path,search:match[2]||'',hash:match[3]||''},message.state);sync()}catch(e){report(e.message)}
+   try{r.navigator.push({pathname:path,search:match[2]||'',hash:match[3]||''},message.state);sync()}catch(e){globalThis.__fadeReportError?.('codex-tabs',e);report(e.message)}
   },300);
  }
  window.addEventListener?.('message',nativeNavigation);
@@ -2698,7 +2755,7 @@ function installHistoryCards(tabs){
     if(Date.now()-waitingSince>=30000){waitingSince=0;error='聊天服务尚未就绪，点击重试';errorUpdatedAt=tabs.history().updatedAt}
     else retryTimer=setTimeout(()=>{if(navOpen&&!disposed)load(more)},300);
    }else waitingSince=0;
-  }catch(cause){waitingSince=0;errorUpdatedAt=tabs.history().updatedAt;error='无法加载，点击重试';console.warn('[Fade history] 加载失败',cause)}finally{busy=false;if(!disposed)render()}
+  }catch(cause){globalThis.__fadeReportError?.('history-cards',cause);waitingSince=0;errorUpdatedAt=tabs.history().updatedAt;error='无法加载，点击重试';console.warn('[Fade history] 加载失败',cause)}finally{busy=false;if(!disposed)render()}
  }
  const unsubscribe=tabs.subscribe(render);
  on(view,'scroll',()=>{layout();const data=tabs.history();if(navOpen&&data.more&&!busy&&view.scrollTop+view.clientHeight>=view.scrollHeight-100)load(true)},{passive:true});
@@ -2720,7 +2777,7 @@ function installHistoryCards(tabs){
    const pending=appendFadeChatActions.pending??=new Set(),key=kind+':'+chat.id;
    if(pending.has(key))return;pending.add(key);button.disabled=true;
    try{if(!await provider.chatAction(chat.id,action))announce('当前聊天暂不支持此操作')}
-   catch(error){announce('聊天操作失败：'+error.message)}
+   catch(error){globalThis.__fadeReportError?.('chat-actions',error);announce('聊天操作失败：'+error.message)}
    finally{pending.delete(key);button.disabled=false}
   };
   actions.append(button);
@@ -2819,7 +2876,7 @@ function installChatPicker(adapter){
   if(!rendered.has('pinned'))pinnedList();if(!rendered.has('threads'))projectsList();if(!rendered.has('chats'))recentList();
   if(query&&!filtered.pinned.length&&!filtered.groups.length&&!filtered.recent.length&&!filtered.sections.length){const empty=document.createElement('div');empty.className='chat-picker-empty';empty.textContent='无匹配聊天';list.append(empty)}
  }
- async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){announce('聊天记录加载失败：'+e.message)}}
+ async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){globalThis.__fadeReportError?.('chat-picker',e);announce('聊天记录加载失败：'+e.message)}}
  function open(nextMode='codex'){
  close();mode=nextMode;
   closeNav();adapter.ensureSidebar();adapter.refresh();opened=true;document.documentElement.setAttribute('data-fade-picker-open','');search.value='';panel.hidden=false;
@@ -3277,3 +3334,5 @@ function installHomeOrb(){
  }};
  setTheme(config.light);updateFanMask();resizeCanvas();adapter.start();
 })();
+
+//# sourceURL=fcodex-runtime.js

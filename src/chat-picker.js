@@ -89,7 +89,7 @@ function installChatPicker(adapter){
   if(!rendered.has('pinned'))pinnedList();if(!rendered.has('threads'))projectsList();if(!rendered.has('chats'))recentList();
   if(query&&!filtered.pinned.length&&!filtered.groups.length&&!filtered.recent.length&&!filtered.sections.length){const empty=document.createElement('div');empty.className='chat-picker-empty';empty.textContent='无匹配聊天';list.append(empty)}
  }
- async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){announce('聊天记录加载失败：'+e.message)}}
+ async function loadGpt(more=false){try{await disposeGptTabs.loadHistory(more);render()}catch(e){globalThis.__fadeReportError?.('chat-picker',e);announce('聊天记录加载失败：'+e.message)}}
  function open(nextMode='codex'){
  close();mode=nextMode;
   closeNav();adapter.ensureSidebar();adapter.refresh();opened=true;document.documentElement.setAttribute('data-fade-picker-open','');search.value='';panel.hidden=false;

@@ -43,7 +43,7 @@ function installHistoryCards(tabs){
     if(Date.now()-waitingSince>=30000){waitingSince=0;error='聊天服务尚未就绪，点击重试';errorUpdatedAt=tabs.history().updatedAt}
     else retryTimer=setTimeout(()=>{if(navOpen&&!disposed)load(more)},300);
    }else waitingSince=0;
-  }catch(cause){waitingSince=0;errorUpdatedAt=tabs.history().updatedAt;error='无法加载，点击重试';console.warn('[Fade history] 加载失败',cause)}finally{busy=false;if(!disposed)render()}
+  }catch(cause){globalThis.__fadeReportError?.('history-cards',cause);waitingSince=0;errorUpdatedAt=tabs.history().updatedAt;error='无法加载，点击重试';console.warn('[Fade history] 加载失败',cause)}finally{busy=false;if(!disposed)render()}
  }
  const unsubscribe=tabs.subscribe(render);
  on(view,'scroll',()=>{layout();const data=tabs.history();if(navOpen&&data.more&&!busy&&view.scrollTop+view.clientHeight>=view.scrollHeight-100)load(true)},{passive:true});

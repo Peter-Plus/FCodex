@@ -79,3 +79,37 @@ Verified on this machine: maximize/restore, enter/leave fullscreen, minimize, cl
 用户反馈只有视频声音、屏幕仍为原生 logo/首页。本次读取真实会话确认：动画 renderer 仍 active、无错误、phase=waiting、host.ready=true、尺寸 1334x751；动画页面截图包含完整视频/标题/小球。这证明内容已渲染，但尚未直接取得主进程视图树，后续原生内容遮挡属于当前修复针对的解释。
 
 新增启动视图置顶维护：在主窗口 show/restore/ready-to-show、主页面加载事件、动画加载完成、resize 及存活期间的 250ms 检查中，确保动画是 contentView 最后一个可见 child。仅顺序不正确时重新追加视图；退出时清理监听器。状态日志新增 topmost/visible/bounds。测试模拟原生初始化后来添加遮挡 View，确认动画恢复顶层，同时保留原生启动请求限制、ready 后加载、隔离/阻塞、交接和销毁验证。实际当前残留不可见动画已通过自己的完成接口清理，未重启客户端。代码随下次完全退出后正常启动自动重建，真实窗口观感仍需验证。
+
+### 后台异常日志（2026-11-01）
+
+新增 `tests/error-log.test.mjs` 覆盖无异常不创建目录、异步写盘、堆栈/版本、重复错误合并、轮换、磁盘失败退避、限流、恶意 getter 隔离、全局事件及脱敏。`tests/window-branding.test.mjs` 覆盖窄桥接字段/长度限制及主窗口主 frame 来源验证；聊天操作测试确认捕获原始异常后仍保留既有提示。
+
+相关功能回归已运行，120 项通过；window-mode 中依赖已卸载 26.1021.3705.0 安装目录的 2 项无法运行。runtime-lifecycle 原有 4 项因模拟 window 缺少 matchMedia 失败；使用 git HEAD 原始测试与原始 fade.js 重跑，确认同样失败，未改动该测试或产品逻辑来掩盖问题。
+
+真实 Electron：`node tests/error-log-electron.mjs <官方 app 目录>` 创建隐藏隔离客户端，验证 preload → 主进程 → JSONL 的完整链路。功能错误重复触发 1000 次只落一条，另有一条未处理异常和一条 Promise 拒绝，共三条，堆栈/版本存在、token 已脱敏；正常初始阶段未创建日志目录。测试无需加载原生产品 UI，使用独立 userData，测试进程退出后通过 work-area 归档至 `.work/review/test-runs`，不构成生产依赖。
+
+正式部署校验：26.1023.6621.0 的 `build-runtime.mjs --verify-only` 在原有 branding hook 失败，未修改官方或正式隔离运行时；日志源代码/生成 fade.js 已完成，正式运行时启用仍被既有版本兼容问题阻挡。没有把独立链路测试当作正式客户端启动成功。性能结论限于正常路径无新增轮询/日志定时器/写盘和异常路径有界，未声称做过用户整机性能基准。
+
+日志目录设置入口：`node --test tests/window-branding.test.mjs tests/error-log.test.mjs` 共 10 项通过；验证无路径参数桥接、未注册窗口/子 frame 拒绝、按需创建固定目录、只将目录传给 shell.openPath，以及系统打开失败传播。重新生成 fade.js 并通过语法检查。本次没有启动资源管理器或改动正式运行时，既有版本兼容阻碍仍存在。
+
+### 日志入口旧运行时兼容修复（2026-11-01）
+
+前述必须重建运行时才能启用的限制已由兼容桥接解除。新增 diagnostics-bridge.mjs，复用普通启动已有 window-controls 辅助进程，原生桥接存在时保持其接口；旧会话热更新临时启动一个 diagnostics-only 辅助进程，不重复注册窗口操作，随目标 WebSocket 关闭退出。安装通过 IPC 就绪回执等待，不再出现菜单先可用而后台尚未安装的问题。
+
+`node --test tests/diagnostics-bridge.test.mjs tests/error-log.test.mjs tests/window-branding.test.mjs` 11 项通过。兼容桥接测试覆盖主 frame/来源筛选、拒绝未知上下文和子 frame、固定目录打开、错误落盘、上下文销毁及无错误时不创建目录。当前实际 FCodex 会话执行 hot-update 成功，调用 openFolder 成功；已确认 `.fade-logs/errors.jsonl` 内写入带堆栈的 diagnostics.self-test，文字明确注明自检而非用户故障。无重启、无修改正式 ASAR，官方新版 branding 补丁本身仍待单独适配。测试临时目录按 work-area 归档；真实自检记录留在正式日志以便核对。
+
+### 日志目录可见性与主题错误详情（2026-11-01）
+
+用户反馈目录点击无反应，实际 COM 枚举发现多个日志目录 Explorer 窗口；旧兼容实现用 windowsHide 启动 Explorer，并把 spawn 当作成功，未检查可见性。新增 open-log-folder.ps1：优先复用匹配目录的 Explorer 窗口，恢复显示并尝试前置；不存在时通过 Shell.Explore 打开，检查 IsWindowVisible，失败返回错误。只隐藏 PowerShell 辅助窗口，不隐藏用户需要的目录窗口。兼容 binding 升为 V2，当前会话热更新完成，命令行精确确认后停掉被替换的旧 diagnostics-only 辅助进程，保留其他进程。实测 openFolder 返回前目录窗口已可见。
+
+用户截图中的主题同步错误已写入 native-theme.apply。原先 receive 丢弃原生返回详情，仅保留泛化消息；现记录接口名、状态码、最多 1000 字符的 error 文本，不采集完整响应体。热更新后正式日志已确认：set-setting; status 432，set-setting not implemented in the current Electron process. Restart ChatGPT to load the latest Electron handlers. 只读 get-setting 同样返回 432。主题接口不兼容本身仍未解决，没有重启用户客户端。
+
+native-theme、diagnostics-bridge、error-log、window-branding 共 22 项测试通过，构建与 diff 检查通过。
+
+### 原生设置 API 适配与经典模式退出（2026-11-01）
+
+当前原生平台已使用 settings.read(key)/settings.write(key,value) 可释放调用，旧 vscode get-setting/set-setting handler 返回 432。FCodex 现在按已加载 app-shared URL 获取具备 settings.read/write 能力的原生平台对象，避免绑定模块哈希或混淆导出名；读取 effective 值，调用完成/超时/销毁时释放资源，无新版平台能力时才使用旧 fetch 接口。普通主题与 Catppuccin 预设共用此适配。
+
+返回经典模式仍等待在途主题写入，但主题同步失败只记入 classic-mode.theme-sync，不再阻挡正常模式切换；真正的聊天清理/切换错误仍保留原有保护及提示。
+
+native-theme、theme-controller、runtime-style-resume 共 18 项通过，包括新版 API 不调用旧 fetch、预设读写验证、调用释放、销毁取消、主题失败不阻挡经典模式且真实切换错误不被忽略。已热更新到当前会话，实测原生 effective 主题 light→dark→light，返回经典模式成功，toast 为空；随后恢复 FCodex 界面。无需重启。本次没有修复官方 26.1023 branding 构建 hook，也未宣称所有客户端版本适配完毕。

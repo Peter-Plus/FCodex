@@ -30,7 +30,7 @@ async function prepareFadeBackground(file,win){
   const canvas=win.document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
   canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
   return {image:canvas.toDataURL('image/webp',.86),name:file.name};
- }catch(error){throw Error(error.message.includes('像素')?error.message:'图片无法读取，请换一张有效的 PNG、JPG 或 WebP 图片')}
+ }catch(error){globalThis.__fadeReportError?.('background-settings',error);throw Error(error.message.includes('像素')?error.message:'图片无法读取，请换一张有效的 PNG、JPG 或 WebP 图片')}
  finally{win.URL.revokeObjectURL(url)}
 }
 function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
@@ -104,18 +104,18 @@ function installBackgroundSettings({doc=document,shadow,announce=()=>{}}){
  async function savePresets(next){
   if(dead||busy||!loaded)return false;busy=true;render();
   try{await store.write('presets',next);if(dead)return false;presets=next;status.textContent='预设已保存。删除预设不改变当前背景';channel?.postMessage('changed');return true}
-  catch(error){if(!dead)status.textContent='保存失败：'+error.message;return false}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead)status.textContent='保存失败：'+error.message;return false}
   finally{busy=false;render()}
  }
  async function commit(mode,next){
   if(dead||busy||!loaded)return;busy=true;render();status.textContent='正在保存…';
   try{const value=normalizeFadeBackground(typeof next==='function'?await next():next);if(dead)return;await store.write(mode,value);if(dead)return;state[mode]=value;apply();status.textContent=(mode==='light'?'亮色':'暗色')+'背景已保存';channel?.postMessage('changed')}
-  catch(error){if(!dead){status.textContent='保存失败：'+error.message;announce(status.textContent)}}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead){status.textContent='保存失败：'+error.message;announce(status.textContent)}}
   finally{busy=false;apply();render()}
  }
  async function load(){
   try{const values=await Promise.all(['light','dark','presets'].map(mode=>store.read(mode)));if(dead)return;state.light=normalizeFadeBackground(values[0]);state.dark=normalizeFadeBackground(values[1]);presets=Array.isArray(values[2])?values[2].filter(p=>p&&typeof p.id==='string'&&typeof p.title==='string'&&p.value?.kind==='custom').map(p=>({id:p.id,title:p.title.slice(0,40),value:normalizeFadeBackground(p.value)})):[];loaded=true;apply();render();status.textContent='更改会自动保存'}
-  catch(error){if(!dead){status.textContent='背景设置读取失败：'+error.message;render()}}
+  catch(error){globalThis.__fadeReportError?.('background-settings',error);if(!dead){status.textContent='背景设置读取失败：'+error.message;render()}}
  }
  const channel=win.BroadcastChannel?new win.BroadcastChannel('fcodex-backgrounds'):null;
  if(channel)channel.onmessage=()=>{if(!busy)void load()};

@@ -12,21 +12,21 @@ function installClassicWindowChrome(){
  const controller=new AbortController();
  const resume=document.createElement('button');resume.type='button';resume.textContent='fade';resume.title='返回 Fade 模式';resume.setAttribute('aria-label','返回 Fade 模式');resume.style.cssText='width:92px;font:12px "Segoe UI",sans-serif;border-radius:6px;margin:3px 6px;height:30px;cursor:pointer';
  view.insertBefore(resume,view.querySelector('button'));
- resume.addEventListener('click',()=>{if(resume.disabled)return;resume.disabled=true;try{if(typeof window.__fadeResume!=='function')throw Error('Fade 尚未加载');window.__fadeResume()}catch(error){resume.disabled=false;resume.textContent='重试 Fade';resume.title=error.message;console.error(error)}},{signal:controller.signal});
- for(const control of view.querySelectorAll('button[data-action]'))control.addEventListener('click',()=>{void api.action(control.dataset.action).then(state=>{if(state)sync(state)}).catch(console.error)},{signal:controller.signal});
- const unsubscribe=api.subscribe(sync);void api.action('state').then(sync).catch(console.error);document.body.append(chrome);
+ resume.addEventListener('click',()=>{if(resume.disabled)return;resume.disabled=true;try{if(typeof window.__fadeResume!=='function')throw Error('Fade 尚未加载');window.__fadeResume()}catch(error){globalThis.__fadeReportError?.('classic-mode',error);resume.disabled=false;resume.textContent='重试 Fade';resume.title=error.message;console.error(error)}},{signal:controller.signal});
+ for(const control of view.querySelectorAll('button[data-action]'))control.addEventListener('click',()=>{void api.action(control.dataset.action).then(state=>{if(state)sync(state)}).catch(error=>{globalThis.__fadeReportError?.('classic-mode.window-action',error);console.error(error)})},{signal:controller.signal});
+ const unsubscribe=api.subscribe(sync);void api.action('state').then(sync).catch(error=>{globalThis.__fadeReportError?.('classic-mode.window-action',error);console.error(error)});document.body.append(chrome);
  window.__fadeClassicChrome={destroy(){controller.abort();unsubscribe?.();chrome.remove();delete window.__fadeClassicChrome}};
 }
 let returningToClassic=false;
 async function returnToClassicMode(){
  if(returningToClassic)return;returningToClassic=true;
  try{
-  // Finish the last native theme write before removing the bridge and styles.
-  await nativeTheme.settled();
+  // Wait for outstanding writes, but optional appearance sync must not block exit.
+  try{await nativeTheme.settled()}catch(error){globalThis.__fadeReportError?.('classic-mode.theme-sync',error)}
   if(disposed)return;
   disposeGptTabs.closeAllForClassic();
   installClassicWindowChrome();
   window.__fadeCodex.destroy();
- }catch(error){if(!disposed)announce('暂未返回经典模式：'+error.message)}
+ }catch(error){globalThis.__fadeReportError?.('classic-mode',error);if(!disposed)announce('暂未返回经典模式：'+error.message)}
  finally{returningToClassic=false}
 }

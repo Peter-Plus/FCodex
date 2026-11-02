@@ -36,7 +36,7 @@ let existing;try{existing=JSON.parse(await fs.readFile(buildPath,'utf8'))}catch{
 const mediaManifest=await fs.readFile('Arts/startup-loop.json','utf8');
 const mediaRevision=hash(Buffer.concat([Buffer.from(mediaManifest),await fs.readFile('Arts/fade-codex-icon.png'),await fs.readFile('startup/branding-patch.mjs')]));
 const diagnosticRevision=diagnostic?hash(await fs.readFile('startup/diagnostic-gate.mjs')):undefined;
-const viewRevision=hash(Buffer.concat(await Promise.all(['startup/client-261021-patch.mjs','startup/window-home-patch.mjs','startup/window-focus-patch.mjs','startup/window-preview-patch.mjs','startup/build-runtime.mjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
+const viewRevision=hash(Buffer.concat(await Promise.all(['startup/error-log.cjs','startup/client-261021-patch.mjs','startup/window-home-patch.mjs','startup/window-focus-patch.mjs','startup/window-preview-patch.mjs','startup/build-runtime.mjs','startup/window-mode-patch.mjs','fade.js','theme.css','startup/quit-patch.mjs','startup/quit-policy.cjs','startup/custom-window-main.cjs','startup/custom-window-preload.cjs','startup/isolated-startup-early.cjs','startup/isolated-startup-main.cjs','startup/isolated-startup-preload.cjs','startup/isolated-startup-page.mjs','design-previews/startup.html','startup/preset.json'].map(p=>fs.readFile(p)))));
 let cacheValid=false;
 if(existing?.oldHash===hash(header)&&existing?.revision===6&&existing?.viewRevision===viewRevision&&existing?.mediaRevision===mediaRevision&&existing?.diagnosticRevision===diagnosticRevision){
  let cached;
@@ -66,6 +66,8 @@ main=main.replace(restoreMaximized,restoreMaximized+'&&!(d===`primary`&&process.
 main=(await fs.readFile('startup/quit-policy.cjs','utf8'))+'\n'+(await fs.readFile('startup/custom-window-main.cjs','utf8'))+'\n'+(await fs.readFile('startup/isolated-startup-main.cjs','utf8'))+'\n'+main;
 const preload=await read('.vite/build/preload.js')+'\n'+await fs.readFile('startup/custom-window-preload.cjs','utf8');
 const files=new Map([['.vite/build/'+mainName,Buffer.from(main)],['.vite/build/preload.js',Buffer.from(preload)]]);
+files.set('.vite/build/fade-error-log.cjs',await fs.readFile('startup/error-log.cjs'));
+files.set('.vite/build/fade-build-info.json',Buffer.from(JSON.stringify({fcodexVersion:'2.0.0',viewRevision,nativeArchive:hash(header)})));
 const bootstrapName=Object.keys(entry('.vite/build').files).find(n=>/^bootstrap-.*\.js$/.test(n));
 if(!bootstrapName)throw Error('Missing native branding bootstrap');
 files.set('.vite/build/'+bootstrapName,Buffer.from(patchBootstrapBranding(await read('.vite/build/'+bootstrapName))));

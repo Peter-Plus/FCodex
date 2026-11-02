@@ -7,6 +7,8 @@ test('chat action buttons reflect pin state, stop navigation and prevent duplica
  const [pin,archive]=row.children[0].children;assert.equal(pin.attrs['aria-pressed'],'true');assert.match(pin.title,/取消置顶/);
  let stopped=0;const event={preventDefault(){},stopPropagation(){stopped++}};const pending=pin.onclick(event);await archive.onclick(event);assert.deepEqual(calls,[['a','pin']]);finish();await pending;
  const archived=archive.onclick(event);finish();await archived;assert.deepEqual(calls,[['a','pin'],['a','archive']]);assert.equal(stopped,3);assert.deepEqual(messages,[]);
+ const errors=[],failure=new Error('injected archive failure');c.__fadeReportError=(...args)=>errors.push(args);provider.chatAction=async()=>{throw failure};
+ await archive.onclick(event);assert.equal(errors.length,1);assert.equal(errors[0][0],'chat-actions');assert.equal(errors[0][1],failure);assert.match(messages[0],/injected archive failure/);
 });
 test('GPT quick actions use native pin/archive functions and enforce edit permission',async()=>{
  const s=fs.readFileSync(new URL('../src/gpt-tabs.js',import.meta.url),'utf8'),method=s.slice(s.indexOf(' async function chatAction('),s.indexOf(' function history(){'));

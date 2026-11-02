@@ -1,25 +1,51 @@
 // Use the installed app's appearance setting so Windows caption symbols follow
 // the same polarity as the renderer. This preference persists with Fade's theme.
-function createNativeThemeSync(win,report){
+function createNativeThemeSync(win,report,{loadSettings}={}){
  const bridge=win.electronBridge;
  if(!bridge?.sendMessageFromView)return {set(){return Promise.resolve(false)},settled(){return Promise.resolve()},destroy(){}};
  let stopped=false,flight=null,desired=null,applied=null;
+ let settingsPromise;
+ async function settings(){
+  if(!settingsPromise)settingsPromise=(async()=>{
+   if(loadSettings)return loadSettings();
+   const url=[...(win.document?.querySelectorAll('link[href]')||[])].map(link=>link.href).find(url=>/\/assets\/app-shared-[\w-]+\.js(?:\?|$)/.test(url));
+   if(!url)return null;
+   const module=await import(url);
+   return Object.values(module).find(value=>value&&typeof value==='object'&&typeof value.settings?.read==='function'&&typeof value.settings?.write==='function')?.settings||null;
+  })().catch(error=>{settingsPromise=null;throw error});
+  return settingsPromise;
+ }
  const pending=new Map();
  function receive(event){
   const data=event.data;
   if(data?.type!=='fetch-response')return;
   const entry=pending.get(data.requestId);if(!entry)return;
   if(data.responseType==='success'&&(!data.status||data.status<400))entry.finish(null,data);
-  else entry.finish(new Error('Native appearance setting failed'));
+  else {
+   const detail=typeof data.error==='string'?data.error.slice(0,1000):'';
+   entry.finish(new Error('Native appearance setting failed ('+entry.method+'; status '+(data.status??'unknown')+')'+(detail?': '+detail:'')));
+  }
  }
  win.addEventListener('message',receive);
- function request(method,params){return new Promise((resolve,reject)=>{
+ function legacyRequest(method,params){return new Promise((resolve,reject)=>{
   const requestId=win.crypto.randomUUID();
   const finish=(error,data)=>{const entry=pending.get(requestId);if(!entry)return;win.clearTimeout(entry.timer);pending.delete(requestId);error?reject(error):resolve(data)};
   const timer=win.setTimeout(()=>finish(new Error('Native appearance setting timed out')),5000);
-  pending.set(requestId,{timer,finish});
+  pending.set(requestId,{timer,finish,method});
   Promise.resolve().then(()=>bridge.sendMessageFromView({type:'fetch',requestId,method:'POST',url:'vscode://codex/'+method,body:JSON.stringify(params)})).catch(finish);
  })}
+ async function request(method,params){
+  const api=await settings();if(stopped)throw Error('Disposed');
+  if(!api)return legacyRequest(method,params);
+  // Current Codex uses disposable platform calls, not vscode fetch handlers.
+  const call=method==='get-setting'?api.read(params.key):api.write(params.key,params.value);
+  return new Promise((resolve,reject)=>{
+   const id=win.crypto.randomUUID();
+   const finish=(error,value)=>{const entry=pending.get(id);if(!entry)return;pending.delete(id);win.clearTimeout(entry.timer);try{call?.[Symbol.dispose]?.()}catch{}error?reject(error):resolve(method==='get-setting'?{bodyJsonString:JSON.stringify({value:value?.effective})}:{} )};
+   const timer=win.setTimeout(()=>finish(Error('Native appearance setting timed out ('+method+')')),5000);
+   pending.set(id,{timer,finish,method});Promise.resolve(call).then(value=>finish(null,value),finish);
+  });
+ }
  const write=value=>request('set-setting',{key:'appearanceTheme',value});
  // Electron's native theme settings default to undefined. Match its renderer
  // defaults before persisting a complete theme (the set-setting schema requires it).
@@ -57,5 +83,5 @@ function createNativeThemeSync(win,report){
   flight=(async()=>{while(!stopped&&desired!==applied){const value=desired;await write(value);applied=value}})().finally(()=>{flight=null});
   return flight;
  }
- return {applyCatppuccinTheme,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped)report(error);return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
+ return {applyCatppuccinTheme,set(value){desired=value;return flush().then(()=>true,error=>{if(!stopped){globalThis.__fadeReportError?.('native-theme.apply',error);report(error)};return false})},settled:flush,destroy(){stopped=true;win.removeEventListener('message',receive);for(const entry of pending.values())entry.finish(new Error('Disposed'))}};
 }

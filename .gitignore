@@ -11,6 +11,7 @@
 /.icon-build-temp/
 /launch.log
 /launch-diagnostic.log
+/.fade-logs/
 
 # Machine-specific shortcut and private UI evidence (keep locally)
 /Fade Codex.lnk

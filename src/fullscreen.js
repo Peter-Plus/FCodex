@@ -4,7 +4,7 @@ function installFullscreenControls(){
  const windowApi=window.fadeWindowControls;
  const restoreButton=$('#fullscreenRestore');
  function applyWindowState(state){if(!state?.custom)return;customWindow=true;nativeFullscreen=state.fullscreen;maximized=state.maximized;sync()}
- async function windowAction(action){try{applyWindowState(await windowApi.action(action))}catch{announce('窗口操作失败，请重试')}}
+ async function windowAction(action){try{applyWindowState(await windowApi.action(action))}catch(error){globalThis.__fadeReportError?.('fullscreen',error);announce('窗口操作失败，请重试')}}
  const isFullscreen=()=>nativeFullscreen||!!document.fullscreenElement;
  function sync(){const full=isFullscreen();full?host.setAttribute('data-fullscreen',''):host.removeAttribute('data-fullscreen');button.setAttribute('aria-pressed',String(full));button.title=full?'退出全屏':'全屏';button.setAttribute('aria-label',button.title);controls.hidden=!(full||customWindow);restoreButton.title=full?'退出全屏':maximized?'还原窗口':'最大化';restoreButton.setAttribute('aria-label',restoreButton.title);restoreButton.setAttribute('data-maximized',String(maximized&&!full))}
  async function nativeMenu(){
@@ -22,7 +22,7 @@ function installFullscreenControls(){
    else if(document.fullscreenElement)await document.exitFullscreen();
    else if(window.electronBridge){const api=await nativeMenu(),snapshot=await api.getSnapshot();const item=snapshot['view-menu']?.find(i=>i.accelerator==='F11');if(!item?.enabled)throw Error('Fullscreen action unavailable');await api.invokeItem(item.nativeCommandId)}
    else await document.documentElement.requestFullscreen();
-  }catch{announce('全屏切换失败，请使用 F11 重试')}finally{busy=false;sync()}
+  }catch(error){globalThis.__fadeReportError?.('fullscreen',error);announce('全屏切换失败，请使用 F11 重试')}finally{busy=false;sync()}
  }
  on(button,'click',toggle);
  on($('#fullscreenRestore'),'click',()=>{if(customWindow)void windowAction('maximize');else if(isFullscreen())void toggle()});
@@ -35,7 +35,7 @@ function installFullscreenControls(){
  on(window,'keydown',event=>{if(event.key==='Escape'&&nativeFullscreen&&!event.defaultPrevented){event.preventDefault();void toggle()}});
  // Native fullscreen can already be active when the theme is reinjected.
  nativeFullscreen=window.__fadeNativeFullscreen??(!!window.screen&&Math.abs(window.outerHeight-window.screen.height)<2&&Math.abs(window.outerWidth-window.screen.width)<2);
- if(windowApi){unsubscribe=windowApi.subscribe(applyWindowState);void windowApi.action('state').then(applyWindowState).catch(()=>{})}
+ if(windowApi){unsubscribe=windowApi.subscribe(applyWindowState);void windowApi.action('state').then(applyWindowState).catch(error=>globalThis.__fadeReportError?.('fullscreen.read-state',error))}
  sync();return ()=>{unsubscribe?.();host.removeAttribute('data-fullscreen')};
 }
 

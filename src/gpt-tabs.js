@@ -96,7 +96,7 @@ function installChatCacheRelease(doc,scope,module,state,isOpen,report){
    for(const id of job.ids)module.DYn(scope,id);
    scope.queryClient.removeQueries({predicate:q=>fadeChatQueryMatches(q,job.ids)});
    remove();
-  }lastError=''}catch(error){const message='聊天缓存释放暂未完成：'+error.message;if(message!==lastError){lastError=message;report(message)}}finally{running=false;schedule(500)}
+  }lastError=''}catch(error){globalThis.__fadeReportError?.('gpt-tabs',error);const message='聊天缓存释放暂未完成：'+error.message;if(message!==lastError){lastError=message;report(message)}}finally{running=false;schedule(500)}
  }
  schedule();
  return {enqueue(tab,id){jobs.push({draftKey:tab.id,ids:[...new Set([tab.conversationId,id].filter(Boolean))],identity:identity()});schedule()},destroy(){disposed=true;globalThis.clearTimeout(timer)}};
@@ -156,7 +156,7 @@ function installGptTabs(doc,list,add,report,options={}){
    upgrade(tab);state.active=tab.id;
    if(tab.location)go(tab.location);else module.zYt(scope,{activeProject:null,fadeChat:true,fadeDraftKey:tab.id,initialChatGptConversationId:tab.conversationId,sidebarProductMode:'codex'});
    syncActivity();render();
-  }catch(e){report('未能打开聊天：'+e.message)}
+  }catch(e){globalThis.__fadeReportError?.('gpt-tabs',e);report('未能打开聊天：'+e.message)}
  }
  function newChat(internal=false){if(!ready)return;replacementHome=null;if(!internal&&options.beforeNew?.()===false)return;const tab={id:'fade-chat-'+crypto.randomUUID(),title:'新聊天',conversationId:module.ZQn()};state.tabs.push(tab);activate(tab)}
  function openHistory(chat){
@@ -228,7 +228,7 @@ function installGptTabs(doc,list,add,report,options={}){
    if(disposed)return;
    cacheRelease=installChatCacheRelease(doc,scope,module,state,job=>state.tabs.some(t=>t.id===job.draftKey||job.ids.includes(resolved(t))),message=>{if(releaseAfterDispose)console.warn(message);else report(message)});
    ready=true;nativeSubscriptions.push(scope.queryClient.getQueryCache().subscribe(schedule));sync();
-  }catch(e){if(!disposed){report('ChatGPT 入口不可用：'+e.message);render()}}
+  }catch(e){globalThis.__fadeReportError?.('gpt-tabs',e);if(!disposed){report('ChatGPT 入口不可用：'+e.message);render()}}
  }
  const query=()=>{const queries=scope?.queryClient.getQueryCache().getAll().filter(q=>q.queryKey[0]==='chatgpt-conversations'&&q.queryKey[1]===20)??[];return queries.find(q=>typeof q.options?.queryFn==='function')??queries[0]};
  const pinnedQuery=()=>scope?.queryClient.getQueryCache().getAll().find(q=>q.queryKey[0]==='chatgpt-pinned-conversations'&&q.queryKey[1]==='v2');
@@ -240,7 +240,7 @@ function installGptTabs(doc,list,add,report,options={}){
   if(!conversation)return false;
   const identity=JSON.stringify([scope.get(module.GMr),scope.get(module.YMr)]);
   const current=()=>!disposed&&identity===JSON.stringify([scope.get(module.GMr),scope.get(module.YMr)]);
-  const fail=error=>report('聊天操作失败：'+error.message);
+  const fail=error=>{globalThis.__fadeReportError?.('gpt-tabs.chat-action',error);report('聊天操作失败：'+error.message)};
   const pinned=scope.get(module.Jan,id)??conversation.is_starred===true;
   const editable=module.mW(conversation,scope.get(module.qMr),scope.get(module.KMr));
   const title=conversation.title||'未命名聊天',messages=module.Don;
@@ -249,7 +249,7 @@ function installGptTabs(doc,list,add,report,options={}){
   const remove=()=>{
    let deleting=false;
    const close=()=>module.U4n(scope,module.gW);
-   const render=()=>module.J4n(scope,module.gW,{open:true,title,isDeleting:deleting,onOpenChange:open=>{if(!open&&!deleting)close()},onConfirm:async()=>{if(deleting||!current())return;deleting=true;render();try{await module.aon({scope,conversationId:id});close()}catch(error){deleting=false;render();fail(error)}}});
+   const render=()=>module.J4n(scope,module.gW,{open:true,title,isDeleting:deleting,onOpenChange:open=>{if(!open&&!deleting)close()},onConfirm:async()=>{if(deleting||!current())return;deleting=true;render();try{await module.aon({scope,conversationId:id});close()}catch(error){globalThis.__fadeReportError?.('gpt-tabs',error);deleting=false;render();fail(error)}}});
    render();
   };
   Promise.resolve().then(async()=>{

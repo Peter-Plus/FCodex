@@ -58,7 +58,7 @@ function fadeOwnPreviewEditor(editor,notify,manualOnly=false){
   if(released)return;
   if(checking)return checking;
   const version=generation;
-  checking=(async()=>{try{const snapshot=await editor.readFile();if(!released&&generation===version)observe(snapshot)}catch(error){if(!released&&generation===version){state.error=error;state.hint=true;notify()}}finally{checking=null}})();
+  checking=(async()=>{try{const snapshot=await editor.readFile();if(!released&&generation===version)observe(snapshot)}catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(!released&&generation===version){state.error=error;state.hint=true;notify()}}finally{checking=null}})();
   return checking;
  }
  function wrap(name,fn){if(typeof editor[name]!=='function')return;originals.set(name,{own:Object.hasOwn(editor,name),value:editor[name]});wrappers.set(name,fn);editor[name]=fn}
@@ -179,7 +179,7 @@ function installPreviewFreshness(doc,report){
   try{const saved=await state.owner.saveNow();if(!current(state))return;
    if(!saved){if(state.owner.state.stale||state.owner.state.error)win.alert('文件已过期或无法确认磁盘版本，已阻止保存覆盖。请先复制并备份当前文档内容，再刷新文件并合并修改。');else report('文件未保存，请等待编辑完成后重试。')}
    else report('文件已保存');
-  }catch(error){if(current(state))report('保存失败：'+error.message)}finally{if(current(state))render(state)}
+  }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state))report('保存失败：'+error.message)}finally{if(current(state))render(state)}
  }
  function eventState(event){const path=event.composedPath();return [...states.values()].find(state=>current(state)&&visible(state.pane)&&(path.includes(state.pane)||state.pane.contains(doc.activeElement)||path.includes(state.bar.parentElement)))}
  function keydown(event){
@@ -276,7 +276,7 @@ function installPreviewFreshness(doc,report){
    state.busy=false;if(!applied){render(state);return}
    state.baseline=null;if(owner)render(state);else paint(state,'FCodex · 已刷新');
    win.requestAnimationFrame(()=>{if(current(state)&&visible(state.pane))for(const [el,top,left]of scrolls)if(el.isConnected){el.scrollTop=top;el.scrollLeft=left}});
-  }catch(error){if(current(state)){state.busy=false;paint(state,error.message||'刷新失败，保留原有内容',true);report('预览刷新失败：'+(error.message||'请重试'))}}
+  }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state)){state.busy=false;paint(state,error.message||'刷新失败，保留原有内容',true);report('预览刷新失败：'+(error.message||'请重试'))}}
   finally{state.busy=false}
  }
  function mount(pane,meta){
@@ -339,7 +339,7 @@ function installPreviewFreshness(doc,report){
       }
      }
      if(current(state)&&!state.busy&&state.owner===owner&&owner)render(state);
-    }catch(error){if(current(state)&&!state.busy){if(owner){owner.state.error=error;owner.state.hint=true}paint(state,error.message,true)}}
+    }catch(error){globalThis.__fadeReportError?.('preview-freshness',error);if(current(state)&&!state.busy){if(owner){owner.state.error=error;owner.state.hint=true}paint(state,error.message,true)}}
    }
   }finally{running=false}
  }

@@ -10,7 +10,7 @@ function appendFadeChatActions(row,chat,provider,kind='codex'){
    const pending=appendFadeChatActions.pending??=new Set(),key=kind+':'+chat.id;
    if(pending.has(key))return;pending.add(key);button.disabled=true;
    try{if(!await provider.chatAction(chat.id,action))announce('当前聊天暂不支持此操作')}
-   catch(error){announce('聊天操作失败：'+error.message)}
+   catch(error){globalThis.__fadeReportError?.('chat-actions',error);announce('聊天操作失败：'+error.message)}
    finally{pending.delete(key);button.disabled=false}
   };
   actions.append(button);

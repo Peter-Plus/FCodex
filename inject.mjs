@@ -47,6 +47,7 @@ for(let attempt=0;attempt<(process.argv.includes('--diagnostic-hold')?120:60)&&!
  timing(`Main UI ready (attempt ${attempt+1})`);
  const injectionStart=performance.now();
  if(!restore)await ensureWindowControls(t);
+ if(!restore&&!await evaluate(t,"typeof window.fadeDiagnostics?.report==='function'"))console.warn('[Fade diagnostics] Runtime has no error-log bridge; persistent operation logs require a rebuilt compatible runtime.');
  const result=await evaluate(t,expression);
  timing(`Theme evaluation finished in ${((performance.now()-injectionStart)/1000).toFixed(2)}s`);
  console.log(JSON.stringify({target:t.id,path:u.pathname,result}));success=true;break;

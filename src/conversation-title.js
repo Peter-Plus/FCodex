@@ -54,7 +54,7 @@ function installConversationTitle(){
     if(action?.enabled!==false&&typeof action?.onSelect==='function'){await action.onSelect();return}break;
    }
    announce('当前聊天暂时无法重命名');
-  }catch{announce('打开重命名失败，请重试')}finally{renaming=false}
+  }catch(error){globalThis.__fadeReportError?.('conversation-title',error);announce('打开重命名失败，请重试')}finally{renaming=false}
  }
  function finishEdit(){editor?.remove();editor=null;title.style.visibility='';}
  async function saveEdit(){
@@ -71,7 +71,7 @@ function installConversationTitle(){
    for(let i=0;i<60&&dialog.isConnected;i++)await new Promise(resolve=>setTimeout(resolve,50));
    if(dialog.isConnected){[...dialog.querySelectorAll('button')].find(el=>/^(取消|Cancel)$/.test(el.textContent.trim()))?.click();throw Error('保存未完成，请重试')}
    finishEdit();schedule();
-  }catch(error){announce(error.message);if(editor){editor.disabled=false;editor.focus()}}
+  }catch(error){globalThis.__fadeReportError?.('conversation-title',error);announce(error.message);if(editor){editor.disabled=false;editor.focus()}}
   finally{root.removeAttribute('data-fade-inline-saving');mask.remove()}
  }
  function rename(){
